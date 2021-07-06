@@ -1,5 +1,5 @@
 add_executable(warp cli.c)
-target_link_libraries(warp PRIVATE warp-core)
+target_link_libraries(warp PRIVATE warp-core termutils)
 
 add_custom_target(run
     COMMAND warp
