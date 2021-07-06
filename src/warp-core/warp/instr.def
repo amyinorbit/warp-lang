@@ -1,0 +1,25 @@
+// The Warp instruction set is defined throught the WARP_OP() X-macro
+//
+// To use it in a format not already provided in warp/instr.h, define WARP_OP(code) and include
+// this file.
+
+#ifndef WARP_OP
+#define WARP_OP(opcode, args, stack)
+#define WARP_OP_NOTHING
+#endif
+
+WARP_OP(CONST, 1, 1)
+WARP_OP(LCONST, 2, 1)
+
+WARP_OP(NEG, 0,  0)
+WARP_OP(ADD, 0, -1)
+WARP_OP(SUB, 0, -1)
+WARP_OP(MUL, 0, -1)
+WARP_OP(DIV, 0, -1)
+
+WARP_OP(RETURN, 0, 0)
+    
+#ifdef WARP_OP_NOTHING
+#undef WARP_OP
+#undef WARP_OP_NOTHING
+#endif
