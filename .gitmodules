@@ -1,3 +1,6 @@
 [submodule "lib/term-utils"]
 	path = lib/term-utils
 	url = git@github.com:amyinorbit/TermUtils
+[submodule "lib/unic"]
+	path = lib/unic
+	url = git@github.com:amyinorbit/UniC
