@@ -10,6 +10,10 @@
 #include <term/line.h>
 #include <term/colors.h>
 #include <stdio.h>
+#include <string.h>
+
+// TODO: Nuke me :))))
+#include <scanner.h>
 
 static void repl_prompt(const char* PS) {
     term_set_fg(stdout, TERM_BLUE);
@@ -27,7 +31,6 @@ static const char* history_path() {
 }
 
 static void repl() {
-    
     warp_vm_t *vm = warp_vm_new(&(warp_cfg_t){.allocator = NULL});
     
     // Set up our fancy line editor
@@ -38,7 +41,15 @@ static void repl() {
     
     char *line = NULL;
     while((line = line_get(line_ed))) {
-        warp_vm_run(vm, line);
+        // warp_vm_run(vm, line);
+        /* TODO: nuke me once you're done testing this pleeeeease */
+        scanner_t scanner;
+        scanner_init_text(&scanner, line, strlen(line));
+        for(;;) {
+            token_t token = scan_token(&scanner);
+            fprintf(stderr, "%s '%.*s'\n", token_name(token.kind), token.length, token.start);
+            if(token.kind == TOK_EOF || token.kind == TOK_INVALID) break;
+        }
         free(line);
     }
     

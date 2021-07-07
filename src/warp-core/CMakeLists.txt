@@ -1,4 +1,4 @@
-set(WARP_CORE_SRC buffers.c chunk.c common.c debug.c vm.c memory.c)
+set(WARP_CORE_SRC buffers.c chunk.c common.c debug.c vm.c memory.c scanner.c)
 set(WARP_CORE_HDR buffers.h chunk.h debug.h memory.h warp_internal.h)
 
 SET(ALL_SRC ${WARP_CORE_SRC} ${WARP_CORE_HDR})
