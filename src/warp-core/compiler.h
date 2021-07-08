@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------===
-// warp_internal.h - Internal data structures supporting Warp
+// compiler.h
 //
 // Created by Amy Parent <amy@amyparent.com>
 // Copyright (c) 2021 Amy Parent
@@ -10,15 +10,5 @@
 #include <warp/warp.h>
 #include "chunk.h"
 
-typedef void *(*allocator_t)(void *, size_t);
 
-struct warp_vm_t {
-    chunk_t *chunk;
-    uint8_t *ip;
-    
-    warp_value_t stack[WARP_STACK_MAX];
-    warp_value_t *sp;
-    
-    size_t allocated;
-    void *(*allocator)(void *, size_t);
-};
+bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length);

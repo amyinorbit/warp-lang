@@ -7,7 +7,9 @@
 // =^•.•^=
 //===--------------------------------------------------------------------------------------------===
 #include <warp/instr.h>
+#include <term/colors.h>
 #include "warp_internal.h"
+#include "compiler.h"
 #include "memory.h"
 #include "debug.h"
 
@@ -56,17 +58,10 @@ static inline warp_value_t pop(warp_vm_t *vm) {
     return *(--vm->sp);
 }
 
-warp_result_t warp_vm_run(warp_vm_t *vm, const char *source) {
+
+warp_result_t warp_run(warp_vm_t *vm) {
     ASSERT(vm);
-    ASSERT(source);
-    
-    // TODO: compile-exec
-    
-    return INTERPRET_OK;
-    
     reset_stack(vm);
-    // vm->chunk = chunk;
-    // vm->ip = chunk->code;
     
 #define READ_8() (*vm->ip++)
 #define READ_CONST() (vm->chunk->constants.data[READ_8()])
@@ -81,10 +76,11 @@ warp_result_t warp_vm_run(warp_vm_t *vm, const char *source) {
     
     for(;;) {
         uint8_t instr;
-            
 #ifdef DEBUG_TRACE_EXEC
+        fprintf(stdout, "\n===\n");
         disassemble_instr(vm->chunk, (int)(vm->ip - vm->chunk->code), stdout);
-        
+
+        fprintf(stdout, "\n---\n");
         for(warp_value_t *v = vm->stack; v != vm->sp; ++v) {
             printf("[");
             print_value(*v, stdout);
@@ -111,12 +107,37 @@ warp_result_t warp_vm_run(warp_vm_t *vm, const char *source) {
         case OP_DIV: ARITHMETIC(/); break;
             
         case OP_RETURN:
+            term_set_fg(stdout, TERM_GREEN);
+            printf("=> ");
+            term_style_reset(stdout);
             print_value(pop(vm), stdout);
             printf("\n");
-            return INTERPRET_OK;
+            return WARP_OK;
         }
     }
-    return INTERPRET_OK;
+    return WARP_OK;
 #undef READ_8
 #undef READ_CONST
+}
+
+
+warp_result_t warp_interpret(warp_vm_t *vm, const char *source, size_t length) {
+    ASSERT(vm);
+    ASSERT(source);
+    
+    chunk_t chunk;
+    chunk_init(vm, &chunk);
+    
+    // TODO: compile-exec
+    if(!compile(vm, &chunk, source, length)) {
+        chunk_fini(vm, &chunk);
+        return WARP_COMPILE_ERROR;
+    }
+    vm->chunk = &chunk;
+    vm->ip = vm->chunk->code;
+    
+    warp_result_t result = warp_run(vm);
+    
+    chunk_fini(vm, &chunk);
+    return result;
 }

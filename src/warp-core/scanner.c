@@ -55,8 +55,8 @@ static const char * token_names[] = {
     [TOK_ARROW] = "arrow",
     [TOK_THEN] = "then",
     
-    [TOK_NUMBER_LITERAL] = "number_literal",
-    [TOK_STRING_LITERAL] = "string_literal",
+    [TOK_NUMBER] = "number_literal",
+    [TOK_STRING] = "string_literal",
     [TOK_IDENTIFIER] = "identifier",
     
     [TOK_SELF] = "self",
@@ -89,7 +89,7 @@ static token_t make_token(scanner_t *scanner, token_kind_t kind) {
     token.kind = kind;
     token.start = scanner->start;
     token.length = (int)(scanner->current - scanner->start);
-    token.loc = scanner->loc;
+    token.line = scanner->line;
     return token;
 }
 
@@ -98,7 +98,7 @@ static token_t error_token(scanner_t *scanner, const char *msg) {
     token.kind = TOK_INVALID;
     token.start = msg;
     token.length = strlen(msg);
-    token.loc = scanner->loc;
+    token.line = scanner->line;
     return token;
 }
 
@@ -150,7 +150,7 @@ static void skip_whitespace(scanner_t *scanner) {
             
         case '\n':
             advance(scanner);
-            scanner->loc ++;
+            scanner->line ++;
             break;
             
         case '/':
@@ -182,14 +182,14 @@ static inline bool is_digit(unicode_scalar_t c) {
 
 static token_t string(scanner_t *scanner) {
     while(peek(scanner) != '"' && !is_at_end(scanner)) {
-        if(peek(scanner) == '\n') scanner->loc++;
+        if(peek(scanner) == '\n') scanner->line++;
         advance(scanner);
     }
     
     if(is_at_end(scanner)) return error_token(scanner, "unterminated character string");
     
     advance(scanner); // We make sure to eat the closing quote
-    return make_token(scanner, TOK_STRING_LITERAL);
+    return make_token(scanner, TOK_STRING);
 }
 
 static token_t number(scanner_t *scanner) {
@@ -205,7 +205,7 @@ static token_t number(scanner_t *scanner) {
         }
     }
     
-    return make_token(scanner, TOK_NUMBER_LITERAL);
+    return make_token(scanner, TOK_NUMBER);
 }
 
 static token_kind_t check_keyword(const scanner_t *scanner,
@@ -286,40 +286,34 @@ token_t scan_token(scanner_t *scanner) {
         case '~': return make_token(scanner, TOK_TILDE);
         case '%': return make_token(scanner, TOK_PERCENT);
         case '?': return make_token(scanner, TOK_QUESTION);
-        
-        case '+': return make_token(scanner, match(scanner, '=') ? TOK_PLUSEQ : TOK_PLUS);
-        case '-': return make_token(scanner, match(scanner, '=') ? TOK_MINUSEQ : TOK_MINUS);
-        case '*': return make_token(scanner, match(scanner, '=') ? TOK_STAREQ : TOK_STAR);
-        case '/': return make_token(scanner, match(scanner, '=') ? TOK_SLASHEQ : TOK_SLASH);
+        case '"': return string(scanner);
         
         case '=': return make_token(scanner, match(scanner, '=') ? TOK_EQEQ : TOK_EQUALS);
         case '!': return make_token(scanner, match(scanner, '=') ? TOK_BANGEQ : TOK_BANG);
         case '>': return make_token(scanner, match(scanner, '=') ? TOK_GTEQ : TOK_GT);
         case '<': return make_token(scanner, match(scanner, '=') ? TOK_LTEQ : TOK_LT);
         
-        case '"': return string(scanner);
+        case '+': return make_token(scanner, match(scanner, '=') ? TOK_PLUSEQ : TOK_PLUS);
+        case '*': return make_token(scanner, match(scanner, '=') ? TOK_STAREQ : TOK_STAR);
+        case '/': return make_token(scanner, match(scanner, '=') ? TOK_SLASHEQ : TOK_SLASH);
+        case '-':
+            if(match(scanner, '=')) return make_token(scanner, TOK_MINUSEQ);
+            else if(match(scanner, '>')) return make_token(scanner, TOK_ARROW);
+            return make_token(scanner, TOK_MINUS);
     }
     
     return error_token(scanner, "unexpected character");
 }
 
-
-/*
-    src_t source;
-    const char *start;
-    const char *current;
-    src_loc_t loc;
-    unicode_scalar_t copy;
-*/
-
 void scanner_init_text(scanner_t *scanner, const char *text, size_t length) {
     UNUSED(scanner);
     UNUSED(text);
+    scanner->source.fname = "<repl>";
     scanner->source.start = text;
     scanner->source.end = text + length;
     scanner->start = text;
     scanner->current = text;
-    scanner->loc = 1;
+    scanner->line = 1;
     
     uint8_t size = 0;
     scanner->copy = unicode_utf8_read(text, src_left(scanner), &size);

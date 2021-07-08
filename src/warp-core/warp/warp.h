@@ -8,26 +8,32 @@
 //===--------------------------------------------------------------------------------------------===
 #pragma once
 #include <warp/common.h>
+#include <warp/diag.h>
 #include <warp/value.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
     
+#ifndef WARP_STACK_MAX
 #define WARP_STACK_MAX (256)
+#endif
 
 typedef struct warp_vm_t warp_vm_t;
-typedef void *(*allocator_t)(void *, size_t);
-
-typedef struct warp_cfg_t {
-    allocator_t allocator;
-} warp_cfg_t;
 
 typedef enum {
-    INTERPRET_OK,
-    INTERPRET_COMPILE_ERROR,
-    INTERPRET_RUNTIME_ERROR,
+    WARP_OK,
+    WARP_COMPILE_ERROR,
+    WARP_RUNTIME_ERROR,
 } warp_result_t;
+
+typedef struct warp_cfg_t {
+    void *(*allocator)(void *, size_t);
+    struct {
+        void (*printer)(const warp_diag_t *, void *);
+        void *user_info;
+    } diagnostics;
+} warp_cfg_t;
 
 /**
  * Creates and resets a new Warp virtual machine.
@@ -44,8 +50,8 @@ warp_vm_t *warp_vm_new(const warp_cfg_t *cfg);
  */
 void warp_vm_destroy(warp_vm_t *vm);
 
-warp_result_t warp_vm_run(warp_vm_t *vm, const char *source);
-
+warp_result_t warp_run(warp_vm_t *vm);
+warp_result_t warp_interpret(warp_vm_t *vm, const char *source, size_t length);
 
 #ifdef __cplusplus
 } // extern "C"

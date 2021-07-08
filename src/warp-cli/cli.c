@@ -17,7 +17,7 @@
 
 static void repl_prompt(const char* PS) {
     term_set_fg(stdout, TERM_BLUE);
-    printf("warp:%s> ", PS);
+    printf("%s> ", PS);
     term_set_fg(stdout, TERM_DEFAULT);
 }
 
@@ -35,22 +35,16 @@ static void repl() {
     
     // Set up our fancy line editor
     UNUSED(repl_prompt);
-    line_t *line_ed = line_new(&(line_functions_t){NULL});
+    line_t *line_ed = line_new(&(line_functions_t){repl_prompt});
     line_history_load(line_ed, history_path());
-    line_set_prompt(line_ed, "repl");
+    line_set_prompt(line_ed, "warp");
     
     char *line = NULL;
     while((line = line_get(line_ed))) {
         // warp_vm_run(vm, line);
         /* TODO: nuke me once you're done testing this pleeeeease */
         scanner_t scanner;
-        scanner_init_text(&scanner, line, strlen(line));
-        for(;;) {
-            token_t token = scan_token(&scanner);
-            fprintf(stderr, "%s '%.*s'\n", token_name(token.kind), token.length, token.start);
-            if(token.kind == TOK_EOF || token.kind == TOK_INVALID) break;
-        }
-        free(line);
+        warp_interpret(vm, line, strlen(line));
     }
     
     line_history_write(line_ed, history_path());
@@ -61,7 +55,7 @@ static void repl() {
 
 static void run_file(const char *path) {
     warp_vm_t *vm = warp_vm_new(&(warp_cfg_t){.allocator = NULL});
-    warp_vm_run(vm, "print 1 + 3");
+    // warp_interpret(vm, "print 1 + 3");
     warp_vm_destroy(vm);
 }
 

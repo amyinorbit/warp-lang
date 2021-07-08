@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------===
-// warp_internal.h - Internal data structures supporting Warp
+// diag.h - Diagnosis 
 //
 // Created by Amy Parent <amy@amyparent.com>
 // Copyright (c) 2021 Amy Parent
@@ -7,18 +7,14 @@
 // =^•.•^=
 //===--------------------------------------------------------------------------------------------===
 #pragma once
-#include <warp/warp.h>
-#include "chunk.h"
+#include <warp/diag.h>
+#include <stdarg.h>
+#include "scanner.h"
 
-typedef void *(*allocator_t)(void *, size_t);
-
-struct warp_vm_t {
-    chunk_t *chunk;
-    uint8_t *ip;
-    
-    warp_value_t stack[WARP_STACK_MAX];
-    warp_value_t *sp;
-    
-    size_t allocated;
-    void *(*allocator)(void *, size_t);
-};
+void emit_diag_varg(
+    const src_t *src,
+    warp_diag_level_t level,
+    const token_t *token,
+    const char *fmt,
+    va_list args
+);

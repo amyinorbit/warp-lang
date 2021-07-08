@@ -28,7 +28,11 @@ void warp_log(const char *filename, int line, const char *fmt, ...) {
     if(!filename || !fmt) abort();
     
     const char *short_fname = strrchr(filename, PATH_SEP);
-    if(!short_fname) short_fname = filename;
+    if(!short_fname) {
+        short_fname = filename;
+    } else {
+        short_fname++;
+    }
     
     va_list args, args_copy;
     va_start(args, fmt);

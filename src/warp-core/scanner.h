@@ -63,8 +63,8 @@ typedef enum {
     TOK_THEN,
     
     // Language objects
-    TOK_NUMBER_LITERAL,
-    TOK_STRING_LITERAL,
+    TOK_NUMBER,
+    TOK_STRING,
     TOK_IDENTIFIER,
     
     // Language keywords
@@ -90,24 +90,23 @@ typedef enum {
 } token_kind_t;
 
 typedef struct {
+    const char *fname;
     const char *start;
     const char *end;
 } src_t;
-
-typedef int src_loc_t;
 
 typedef struct scanner_s {
     src_t source;
     const char *start;
     const char *current;
-    src_loc_t loc;
+    int line;
     unicode_scalar_t copy;
 } scanner_t;
 
 typedef struct token_s {
     token_kind_t kind;
     int length;
-    src_loc_t loc;
+    int line;
     const char *start;
 } token_t;
 

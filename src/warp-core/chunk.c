@@ -32,7 +32,7 @@ void chunk_fini(warp_vm_t *vm, chunk_t *chunk) {
     val_buf_fini(vm, &chunk->constants);
 }
 
-void chunk_emit_8(warp_vm_t *vm, chunk_t *chunk, uint8_t byte, int line) {
+void chunk_write(warp_vm_t *vm, chunk_t *chunk, uint8_t byte, int line) {
     ASSERT(vm);
     ASSERT(chunk);
     
@@ -46,27 +46,6 @@ void chunk_emit_8(warp_vm_t *vm, chunk_t *chunk, uint8_t byte, int line) {
     chunk->code[chunk->count] = byte;
     chunk->lines[chunk->count] = line;
     chunk->count += 1;
-}
-
-void chunk_emit_16(warp_vm_t *vm, chunk_t *chunk, uint16_t bytes, int line) {
-    ASSERT(vm);
-    ASSERT(chunk);
-    
-    chunk_emit_8(vm, chunk, bytes & 0x00ff, line);
-    chunk_emit_8(vm, chunk, bytes >> 8, line);
-}
-
-void chunk_emit_const(warp_vm_t *vm, chunk_t *chunk, warp_value_t value, int line) {
-    ASSERT(vm);
-    ASSERT(chunk);
-    int idx = chunk_add_const(vm, chunk, value);
-    if(idx < 255) { // TODO: FLIP THAT LOGIC ONCE TESTED
-        chunk_emit_8(vm, chunk, OP_LCONST, line);
-        chunk_emit_16(vm, chunk, (uint16_t)idx, line);
-    } else {
-        chunk_emit_8(vm, chunk, OP_CONST, line);
-        chunk_emit_8(vm, chunk, (uint8_t)idx, line);
-    }
 }
 
 int chunk_add_const(warp_vm_t *vm, chunk_t *chunk, warp_value_t value) {
