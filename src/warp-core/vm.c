@@ -12,6 +12,7 @@
 #include "compiler.h"
 #include "memory.h"
 #include "debug.h"
+#include "value.h"
 #include <stdarg.h>
 
 warp_vm_t *warp_vm_new(const warp_cfg_t *cfg) {
@@ -144,6 +145,12 @@ warp_result_t warp_run(warp_vm_t *vm) {
             push(vm, WARP_NUMBER_VAL(-val));
             break;
         }
+        
+        case OP_NOT: {
+            warp_value_t val = pop(vm);
+            push(vm, WARP_BOOL_VAL(value_is_falsey(val)));
+            break;
+        }
             
         case OP_ADD: ARITHMETIC(NUMBER, +); break;
         case OP_SUB: ARITHMETIC(NUMBER, -); break;
@@ -155,8 +162,12 @@ warp_result_t warp_run(warp_vm_t *vm) {
         case OP_LTEQ: ARITHMETIC(BOOL, <=); break;
         case OP_GTEQ: ARITHMETIC(BOOL, >=); break;
         
-        // TODO: this isn't right, we need to call value_equals(a, b)
-        case OP_EQ: ARITHMETIC(BOOL, ==); break;
+        case OP_EQ: {
+            warp_value_t b = pop(vm);
+            warp_value_t a = pop(vm);
+            push(vm, WARP_BOOL_VAL(value_equals(a, b)));
+            break;
+        }
             
         case OP_RETURN:
             term_set_fg(stdout, TERM_GREEN);

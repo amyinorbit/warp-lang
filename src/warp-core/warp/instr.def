@@ -22,6 +22,7 @@ WARP_OP(MUL, 0, -1)
 WARP_OP(DIV, 0, -1)
 WARP_OP(POW, 0, -1)
 
+WARP_OP(NOT, 0, 0)
 WARP_OP(LT, 0, -1)
 WARP_OP(GT, 0, -1)
 WARP_OP(LTEQ, 0, -1)

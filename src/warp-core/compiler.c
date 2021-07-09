@@ -161,12 +161,9 @@ static void unary(compiler_t *comp) {
     
     expression(comp);    
     switch(op.kind) {
-    case TOK_MINUS:
-        emit_byte(comp, OP_NEG);
-        break;
-    default:
-        UNREACHABLE();
-        break;
+    case TOK_MINUS: emit_byte(comp, OP_NEG); break;
+    case TOK_BANG: emit_byte(comp, OP_NOT); break;
+    default: UNREACHABLE(); break;
     }
 }
 
@@ -186,6 +183,7 @@ static void binary(compiler_t *comp) {
     case TOK_LTEQ: emit_byte(comp, OP_LTEQ); break;
     case TOK_GTEQ: emit_byte(comp, OP_GTEQ); break;
     case TOK_EQEQ: emit_byte(comp, OP_EQ); break;
+    case TOK_BANGEQ: emit_bytes(comp, OP_EQ, OP_NOT); break;
     
     default: UNREACHABLE(); return;
     }
@@ -213,7 +211,7 @@ const parse_rule_t rules[] = {
     [TOK_TILDE] =       {NULL,      NULL,       PREC_NONE},
     [TOK_AMP] =         {NULL,      NULL,       PREC_NONE},
     [TOK_PIPE] =        {NULL,      NULL,       PREC_NONE},
-    [TOK_BANG] =        {NULL,      NULL,       PREC_NONE},
+    [TOK_BANG] =        {unary,     NULL,       PREC_UNARY},
     [TOK_QUESTION] =    {NULL,      NULL,       PREC_NONE},
     [TOK_LT] =          {NULL,      binary,     PREC_COMPARISON},
     [TOK_GT] =          {NULL,      binary,     PREC_COMPARISON},
@@ -225,7 +223,7 @@ const parse_rule_t rules[] = {
     [TOK_MINUSEQ] =     {NULL,      NULL,       PREC_NONE},
     [TOK_STAREQ] =      {NULL,      NULL,       PREC_NONE},
     [TOK_SLASHEQ] =     {NULL,      NULL,       PREC_NONE},
-    [TOK_BANGEQ] =      {NULL,      NULL,       PREC_NONE},
+    [TOK_BANGEQ] =      {NULL,      binary,     PREC_EQUALITY},
     [TOK_LTLT] =        {NULL,      NULL,       PREC_NONE},
     [TOK_GTGT] =        {NULL,      NULL,       PREC_NONE},
     [TOK_GTGTEQ] =      {NULL,      NULL,       PREC_NONE},
