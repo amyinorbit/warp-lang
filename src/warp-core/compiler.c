@@ -71,6 +71,13 @@ static void error_at(compiler_t *comp, const token_t *token, const char *fmt, ..
 static void error(compiler_t *comp, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
+    error_at_varg(comp, previous(comp), fmt, args);
+    va_end(args);
+}
+
+static void error_current(compiler_t *comp, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
     error_at_varg(comp, current(comp), fmt, args);
     va_end(args);
 }
@@ -80,7 +87,7 @@ static void advance(compiler_t *comp) {
     for(;;) {
         *current(comp) = scan_token(&comp->scanner);
         if(current(comp)->kind != TOK_INVALID) break;
-        error(comp, "invalid character");
+        error_current(comp, "invalid character");
     }
 }
 
@@ -89,7 +96,7 @@ static void consume(compiler_t *comp, token_kind_t kind, const char *msg) {
         advance(comp);
         return;
     }
-    error(comp, msg);
+    error_current(comp, msg);
 }
 
 static void emit_byte(compiler_t *comp, uint8_t byte) {
@@ -132,9 +139,18 @@ static void parse_precedence(compiler_t *comp, precedence_t prec);
 
 static void number(compiler_t *comp) {
     double val = strtod(previous(comp)->start, NULL);
-    emit_const(comp, val);
+    emit_const(comp, WARP_NUMBER_VAL(val));
 }
 
+static void literal(compiler_t *comp) {
+    token_t tok = *previous(comp);
+    switch(tok.kind) {
+        case TOK_TRUE: emit_byte(comp, OP_TRUE); break;
+        case TOK_FALSE: emit_byte(comp, OP_FALSE); break;
+        case TOK_NIL: emit_byte(comp, OP_NIL); break;
+        default: UNREACHABLE(); break;
+    }
+}
 
 static void expression(compiler_t *comp) {
     parse_precedence(comp, PREC_ASSIGNMENT);
@@ -164,6 +180,13 @@ static void binary(compiler_t *comp) {
     case TOK_MINUS: emit_byte(comp, OP_SUB); break;
     case TOK_STAR: emit_byte(comp, OP_MUL); break;
     case TOK_SLASH: emit_byte(comp, OP_DIV); break;
+    
+    case TOK_LT: emit_byte(comp, OP_LT); break;
+    case TOK_GT: emit_byte(comp, OP_GT); break;
+    case TOK_LTEQ: emit_byte(comp, OP_LTEQ); break;
+    case TOK_GTEQ: emit_byte(comp, OP_GTEQ); break;
+    case TOK_EQEQ: emit_byte(comp, OP_EQ); break;
+    
     default: UNREACHABLE(); return;
     }
 }
@@ -192,12 +215,12 @@ const parse_rule_t rules[] = {
     [TOK_PIPE] =        {NULL,      NULL,       PREC_NONE},
     [TOK_BANG] =        {NULL,      NULL,       PREC_NONE},
     [TOK_QUESTION] =    {NULL,      NULL,       PREC_NONE},
-    [TOK_LT] =          {NULL,      NULL,       PREC_NONE},
-    [TOK_GT] =          {NULL,      NULL,       PREC_NONE},
+    [TOK_LT] =          {NULL,      binary,     PREC_COMPARISON},
+    [TOK_GT] =          {NULL,      binary,     PREC_COMPARISON},
     [TOK_EQUALS] =      {NULL,      NULL,       PREC_NONE},
-    [TOK_LTEQ] =        {NULL,      NULL,       PREC_NONE},
-    [TOK_GTEQ] =        {NULL,      NULL,       PREC_NONE},
-    [TOK_EQEQ] =        {NULL,      NULL,       PREC_NONE},
+    [TOK_LTEQ] =        {NULL,      binary,     PREC_COMPARISON},
+    [TOK_GTEQ] =        {NULL,      binary,     PREC_COMPARISON},
+    [TOK_EQEQ] =        {NULL,      binary,     PREC_EQUALITY},
     [TOK_PLUSEQ] =      {NULL,      NULL,       PREC_NONE},
     [TOK_MINUSEQ] =     {NULL,      NULL,       PREC_NONE},
     [TOK_STAREQ] =      {NULL,      NULL,       PREC_NONE},
@@ -219,9 +242,9 @@ const parse_rule_t rules[] = {
     [TOK_STRING] =      {NULL,      NULL,       PREC_NONE},
     [TOK_IDENTIFIER] =  {NULL,      NULL,       PREC_NONE},
     [TOK_SELF] =        {NULL,      NULL,       PREC_NONE},
-    [TOK_TRUE] =        {NULL,      NULL,       PREC_NONE},
-    [TOK_FALSE] =       {NULL,      NULL,       PREC_NONE},
-    [TOK_NIL] =         {NULL,      NULL,       PREC_NONE},
+    [TOK_TRUE] =        {literal,   NULL,       PREC_NONE},
+    [TOK_FALSE] =       {literal,   NULL,       PREC_NONE},
+    [TOK_NIL] =         {literal,   NULL,       PREC_NONE},
     [TOK_FUN] =         {NULL,      NULL,       PREC_NONE},
     [TOK_VAR] =         {NULL,      NULL,       PREC_NONE},
     [TOK_LET] =         {NULL,      NULL,       PREC_NONE},

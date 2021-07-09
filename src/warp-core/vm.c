@@ -12,6 +12,7 @@
 #include "compiler.h"
 #include "memory.h"
 #include "debug.h"
+#include <stdarg.h>
 
 warp_vm_t *warp_vm_new(const warp_cfg_t *cfg) {
     ASSERT(cfg);
@@ -54,8 +55,28 @@ static inline void push(warp_vm_t *vm, warp_value_t value) {
     vm->sp++;
 }
 
+static inline warp_value_t peek(warp_vm_t *vm, int offset) {
+    return vm->sp[-1 - offset];
+}
+
 static inline warp_value_t pop(warp_vm_t *vm) {
     return *(--vm->sp);
+}
+
+static void runtime_error(warp_vm_t *vm, const char *fmt, ...) {
+    // TODO: output to the diagnostics system, probably
+    
+    size_t instruction = vm->ip - vm->chunk->code;
+    int line = vm->chunk->lines[instruction];
+
+    fprintf(stderr, "runtime error on line %d: ", line);
+    
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+    reset_stack(vm);
+    fputc('\n', stderr);
 }
 
 
@@ -66,11 +87,15 @@ warp_result_t warp_run(warp_vm_t *vm) {
 #define READ_8() (*vm->ip++)
 #define READ_CONST() (vm->chunk->constants.data[READ_8()])
     
-#define ARITHMETIC(op)                                                                             \
+#define ARITHMETIC(T, op)                                                                          \
     do {                                                                                           \
-        warp_value_t b = pop(vm);                                                                  \
-        warp_value_t a = pop(vm);                                                                  \
-        push(vm, a op b);                                                                          \
+        if(!WARP_IS_NUMBER(peek(vm, 0)) || !WARP_IS_NUMBER(peek(vm, 1))) {                         \
+            runtime_error(vm, "Invalid operands to " #op " operator");                             \
+            return WARP_RUNTIME_ERROR;                                                             \
+        }                                                                                          \
+        double b = WARP_AS_NUMBER(pop(vm));                                                        \
+        double a = WARP_AS_NUMBER(pop(vm));                                                        \
+        push(vm, WARP_##T##_VAL(a op b));                                                          \
     } while(0)
         
     
@@ -97,14 +122,41 @@ warp_result_t warp_run(warp_vm_t *vm) {
             push(vm, read_constant_long(vm));
             break;
             
-        case OP_NEG:
-            push(vm, -pop(vm));
+        case OP_NIL:
+            push(vm, WARP_NIL_VAL);
             break;
             
-        case OP_ADD: ARITHMETIC(+); break;
-        case OP_SUB: ARITHMETIC(-); break;
-        case OP_MUL: ARITHMETIC(*); break;
-        case OP_DIV: ARITHMETIC(/); break;
+        case OP_TRUE:
+            push(vm, WARP_BOOL_VAL(true));
+            break;
+            
+        case OP_FALSE:
+            push(vm, WARP_BOOL_VAL(false));
+            break;
+            
+        case OP_NEG: {
+            if(!WARP_IS_NUMBER(peek(vm, 0))) {
+                // TODO: throw error
+                runtime_error(vm, "invalid operands to `-'");
+                return WARP_RUNTIME_ERROR;
+            }
+            double val = WARP_AS_NUMBER(pop(vm));
+            push(vm, WARP_NUMBER_VAL(-val));
+            break;
+        }
+            
+        case OP_ADD: ARITHMETIC(NUMBER, +); break;
+        case OP_SUB: ARITHMETIC(NUMBER, -); break;
+        case OP_MUL: ARITHMETIC(NUMBER, *); break;
+        case OP_DIV: ARITHMETIC(NUMBER, /); break;
+        
+        case OP_LT: ARITHMETIC(BOOL, <); break;
+        case OP_GT: ARITHMETIC(BOOL, >); break;
+        case OP_LTEQ: ARITHMETIC(BOOL, <=); break;
+        case OP_GTEQ: ARITHMETIC(BOOL, >=); break;
+        
+        // TODO: this isn't right, we need to call value_equals(a, b)
+        case OP_EQ: ARITHMETIC(BOOL, ==); break;
             
         case OP_RETURN:
             term_set_fg(stdout, TERM_GREEN);
