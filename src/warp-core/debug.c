@@ -24,8 +24,8 @@ static const size_t instr_count = sizeof(instr_data)/sizeof(instr_data_t);
 
 void print_value(warp_value_t value, FILE *out) {
     ASSERT(out);
-    if(WARP_IS_NUMBER(value)) {
-        fprintf(out, "%g", WARP_AS_NUMBER(value));
+    if(WARP_IS_NUM(value)) {
+        fprintf(out, "%g", WARP_AS_NUM(value));
     } else if(WARP_IS_BOOL(value)) {
         fprintf(out, "%s", WARP_AS_BOOL(value) ? "true" : "false");
     } else if(WARP_IS_NIL(value)) {

@@ -25,6 +25,7 @@ extern "C" {
     
 // #define DEBUG_PRINT_CODE
 // #define DEBUG_TRACE_EXEC
+#define WARP_USE_NAN
     
 #ifndef NDEBUG
     #define ASSERT(expr) UNUSED(expr)
@@ -56,6 +57,9 @@ extern "C" {
 
 void warp_log_init(void (*print_fn)(const char*));
 void warp_log(const char *filename, int line, const char *fmt, ...);
+
+
+typedef struct warp_vm_t warp_vm_t;
 
 #ifdef __cplusplus
 } // extern "C"

@@ -19,8 +19,6 @@ extern "C" {
 #define WARP_STACK_MAX (256)
 #endif
 
-typedef struct warp_vm_t warp_vm_t;
-
 typedef enum {
     WARP_OK,
     WARP_COMPILE_ERROR,
@@ -30,7 +28,8 @@ typedef enum {
 typedef struct warp_cfg_t {
     void *(*allocator)(void *, size_t);
     struct {
-        void (*printer)(const warp_diag_t *, void *);
+        void (*compile_diag)(const warp_diag_t *, void *);
+        void (*runtime_diag)(const char *message, void *);
         void *user_info;
     } diagnostics;
 } warp_cfg_t;

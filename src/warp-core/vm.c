@@ -88,14 +88,14 @@ warp_result_t warp_run(warp_vm_t *vm) {
 #define READ_8() (*vm->ip++)
 #define READ_CONST() (vm->chunk->constants.data[READ_8()])
     
-#define ARITHMETIC(T, op)                                                                          \
+#define BINARY(T, op)                                                                              \
     do {                                                                                           \
-        if(!WARP_IS_NUMBER(peek(vm, 0)) || !WARP_IS_NUMBER(peek(vm, 1))) {                         \
+        if(!WARP_IS_NUM(peek(vm, 0)) || !WARP_IS_NUM(peek(vm, 1))) {                               \
             runtime_error(vm, "Invalid operands to " #op " operator");                             \
             return WARP_RUNTIME_ERROR;                                                             \
         }                                                                                          \
-        double b = WARP_AS_NUMBER(pop(vm));                                                        \
-        double a = WARP_AS_NUMBER(pop(vm));                                                        \
+        double b = WARP_AS_NUM(pop(vm));                                                           \
+        double a = WARP_AS_NUM(pop(vm));                                                           \
         push(vm, WARP_##T##_VAL(a op b));                                                          \
     } while(0)
         
@@ -136,13 +136,13 @@ warp_result_t warp_run(warp_vm_t *vm) {
             break;
             
         case OP_NEG: {
-            if(!WARP_IS_NUMBER(peek(vm, 0))) {
+            if(!WARP_IS_NUM(peek(vm, 0))) {
                 // TODO: throw error
                 runtime_error(vm, "invalid operands to `-'");
                 return WARP_RUNTIME_ERROR;
             }
-            double val = WARP_AS_NUMBER(pop(vm));
-            push(vm, WARP_NUMBER_VAL(-val));
+            double val = WARP_AS_NUM(pop(vm));
+            push(vm, WARP_NUM_VAL(-val));
             break;
         }
         
@@ -152,15 +152,15 @@ warp_result_t warp_run(warp_vm_t *vm) {
             break;
         }
             
-        case OP_ADD: ARITHMETIC(NUMBER, +); break;
-        case OP_SUB: ARITHMETIC(NUMBER, -); break;
-        case OP_MUL: ARITHMETIC(NUMBER, *); break;
-        case OP_DIV: ARITHMETIC(NUMBER, /); break;
+        case OP_ADD: BINARY(NUM, +); break;
+        case OP_SUB: BINARY(NUM, -); break;
+        case OP_MUL: BINARY(NUM, *); break;
+        case OP_DIV: BINARY(NUM, /); break;
         
-        case OP_LT: ARITHMETIC(BOOL, <); break;
-        case OP_GT: ARITHMETIC(BOOL, >); break;
-        case OP_LTEQ: ARITHMETIC(BOOL, <=); break;
-        case OP_GTEQ: ARITHMETIC(BOOL, >=); break;
+        case OP_LT: BINARY(BOOL, <); break;
+        case OP_GT: BINARY(BOOL, >); break;
+        case OP_LTEQ: BINARY(BOOL, <=); break;
+        case OP_GTEQ: BINARY(BOOL, >=); break;
         
         case OP_EQ: {
             warp_value_t b = pop(vm);

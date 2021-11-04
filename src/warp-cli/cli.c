@@ -12,9 +12,6 @@
 #include <stdio.h>
 #include <string.h>
 
-// TODO: Nuke me :))))
-#include <scanner.h>
-
 static void repl_prompt(const char* PS) {
     term_set_fg(stdout, TERM_BLUE);
     printf("%s> ", PS);
@@ -41,9 +38,6 @@ static void repl() {
     
     char *line = NULL;
     while((line = line_get(line_ed))) {
-        // warp_vm_run(vm, line);
-        /* TODO: nuke me once you're done testing this pleeeeease */
-        scanner_t scanner;
         warp_interpret(vm, line, strlen(line));
     }
     

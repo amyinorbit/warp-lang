@@ -9,7 +9,8 @@ add_library(warp-core STATIC ${ALL_SRC})
 target_link_libraries(warp-core PUBLIC m unic termutils)
 target_compile_options(warp-core PRIVATE -Wall -Wextra -Wpedantic -Werror)
 target_compile_features(warp-core PUBLIC c_std_11)
-target_include_directories(warp-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(warp-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(warp-core
 PROPERTIES
     C_VISIBILITY_PRESET hidden

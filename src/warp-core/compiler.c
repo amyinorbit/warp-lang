@@ -139,7 +139,7 @@ static void parse_precedence(compiler_t *comp, precedence_t prec);
 
 static void number(compiler_t *comp) {
     double val = strtod(previous(comp)->start, NULL);
-    emit_const(comp, WARP_NUMBER_VAL(val));
+    emit_const(comp, WARP_NUM_VAL(val));
 }
 
 static void literal(compiler_t *comp) {
