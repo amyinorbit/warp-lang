@@ -13,6 +13,8 @@
 extern "C" {
 #endif
 
+#define WARP_USE_NAN
+
 typedef enum {
     VAL_NIL,
     VAL_BOOL,

@@ -68,9 +68,19 @@ const char *get_line_start(const src_t *src, const token_t *token) {
     return ptr;
 }
 
-const char *get_line_end(const src_t *src, const token_t *token) {
-    CHECK(token->start >= src->start && token->start < src->end);
-    const char *ptr = token->start;
+const char *get_line_start_n(const src_t *src, int line) {
+    const char *ptr = src->start;
+    int cur = 1;
+    while(ptr < src->end && cur != line) {
+        if(*(ptr++) == '\n')
+            cur += 1;
+    }
+    return ptr;
+}
+
+const char *get_line_end(const src_t *src, const char *cursor) {
+    CHECK(cursor >= src->start && cursor < src->end);
+    const char *ptr = cursor;
     while(ptr < src->end && *ptr != '\n' && *ptr != '\r') {
         ptr++;
     }
@@ -95,11 +105,42 @@ void emit_diag_varg(
     diag.level = level;
     diag.message = message;
     diag.line_start = get_line_start(src, token);
-    diag.line_end = get_line_end(src, token);
+    diag.line_end = get_line_end(src, token->start);
     
     diag.span.length = token->length;
     diag.span.line = token->line;
     diag.span.column = 1 + (int)(token->start - diag.line_start);
+    diag.fname = src->fname;
+    
+    // TODO: call user function if present
+    warp_print_diag(&diag, NULL);
+    
+    free(message);
+}
+
+void emit_diag_line_varg(
+    const src_t *src,
+    warp_diag_level_t level,
+    int line,
+    const char *fmt,
+    va_list args
+) {
+    va_list copy;
+    va_copy(copy, args);
+    size_t size = vsnprintf(NULL, 0, fmt, copy) + 1;
+    
+    warp_diag_t diag;
+    char *message = malloc(size);
+    vsnprintf(message, size, fmt, args);
+    
+    diag.level = level;
+    diag.message = message;
+    diag.line_start = get_line_start_n(src, line);
+    diag.line_end = get_line_end(src, diag.line_start);
+    
+    diag.span.length = diag.line_end - diag.line_start;
+    diag.span.line = line;
+    diag.span.column = 1;
     diag.fname = src->fname;
     
     // TODO: call user function if present

@@ -18,3 +18,11 @@ void emit_diag_varg(
     const char *fmt,
     va_list args
 );
+
+void emit_diag_line_varg(
+    const src_t *src,
+    warp_diag_level_t level,
+    int line,
+    const char *fmt,
+    va_list args
+);
