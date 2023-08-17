@@ -12,7 +12,7 @@
 #include "compiler.h"
 #include "memory.h"
 #include "debug.h"
-#include "value.h"
+#include "value_impl.h"
 #include <stdarg.h>
 
 warp_vm_t *warp_vm_new(const warp_cfg_t *cfg) {

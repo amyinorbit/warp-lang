@@ -1,5 +1,29 @@
-set(WARP_CORE_SRC buffers.c chunk.c common.c debug.c vm.c memory.c scanner.c diag.c compiler.c value.c)
-set(WARP_CORE_HDR buffers.h chunk.h debug.h memory.h warp_internal.h)
+set(WARP_CORE_SRC
+    buffers.c
+    chunk.c
+    common.c
+    debug.c
+    vm.c
+    memory.c
+    scanner.c
+    diag.c
+    compiler.c
+    value.c
+)
+set(WARP_CORE_HDR
+    include/warp/common.h
+    include/warp/instr.h
+    include/warp/string.h
+    include/warp/value.h
+    include/warp/warp.h
+    buffers.h
+    chunk.h
+    debug.h
+    memory.h
+    diag_impl.h
+    value_impl.h
+    warp_internal.h
+)
 
 SET(ALL_SRC ${WARP_CORE_SRC} ${WARP_CORE_HDR})
 LIST(SORT ALL_SRC)

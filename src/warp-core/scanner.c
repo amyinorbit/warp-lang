@@ -7,7 +7,7 @@
 // =^•.•^=
 //===--------------------------------------------------------------------------------------------===
 #include "scanner.h"
-#include "diag.h"
+#include "diag_impl.h"
 #include <string.h>
 
 static const char * token_names[] = {

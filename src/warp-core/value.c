@@ -6,7 +6,7 @@
 // Licensed under the MIT License
 // =^•.•^=
 //===--------------------------------------------------------------------------------------------===
-#include "value.h"
+#include "value_impl.h"
 
 static inline warp_value_kind_t value_kind(warp_value_t val) {
 #ifdef WARP_USE_NAN

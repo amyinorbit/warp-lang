@@ -6,7 +6,7 @@
 // Licensed under the MIT License
 // =^•.•^=
 //===--------------------------------------------------------------------------------------------===
-#include "diag.h"
+#include "diag_impl.h"
 #include <term/colors.h>
 
 

@@ -9,7 +9,7 @@
 #include <warp/instr.h>
 #include "compiler.h"
 #include "scanner.h"
-#include "diag.h"
+#include "diag_impl.h"
 #include "debug.h"
 #include <stdarg.h>
 
