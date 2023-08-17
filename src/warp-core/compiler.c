@@ -87,7 +87,6 @@ static void advance(compiler_t *comp) {
     for(;;) {
         *current(comp) = scan_token(&comp->scanner);
         if(current(comp)->kind != TOK_INVALID) break;
-        error_current(comp, "invalid character");
     }
 }
 
@@ -96,7 +95,7 @@ static void consume(compiler_t *comp, token_kind_t kind, const char *msg) {
         advance(comp);
         return;
     }
-    error_current(comp, msg);
+    if(current(comp)->kind != TOK_INVALID) error_current(comp, msg);
 }
 
 static void emit_byte(compiler_t *comp, uint8_t byte) {

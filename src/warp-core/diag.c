@@ -87,6 +87,19 @@ const char *get_line_end(const src_t *src, const char *cursor) {
     return ptr;
 }
 
+void emit_diag(
+    const src_t *src,
+    warp_diag_level_t level,
+    const token_t *token,
+    const char *fmt,
+    ...
+) {
+    va_list args;
+    va_start(args, fmt);
+    emit_diag_varg(src, level, token, fmt, args);
+    va_end(args);
+}
+
 void emit_diag_varg(
     const src_t *src,
     warp_diag_level_t level,

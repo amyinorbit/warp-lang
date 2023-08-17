@@ -7,6 +7,7 @@
 // =^•.•^=
 //===--------------------------------------------------------------------------------------------===
 #include "scanner.h"
+#include "diag.h"
 #include <string.h>
 
 static const char * token_names[] = {
@@ -93,11 +94,11 @@ static token_t make_token(scanner_t *scanner, token_kind_t kind) {
     return token;
 }
 
-static token_t error_token(scanner_t *scanner, const char *msg) {
+static token_t error_token(scanner_t *scanner) {
     token_t token;
     token.kind = TOK_INVALID;
-    token.start = msg;
-    token.length = strlen(msg);
+    token.start = scanner->start;
+    token.length = 1;
     token.line = scanner->line;
     return token;
 }
@@ -186,7 +187,11 @@ static token_t string(scanner_t *scanner) {
         advance(scanner);
     }
     
-    if(is_at_end(scanner)) return error_token(scanner, "unterminated character string");
+    if(is_at_end(scanner)) {
+        token_t tok = error_token(scanner);
+        emit_diag(&scanner->source, WARP_DIAG_ERROR, &tok, "unterminated character string");
+        return tok;
+    }
     
     advance(scanner); // We make sure to eat the closing quote
     return make_token(scanner, TOK_STRING);
@@ -302,7 +307,9 @@ token_t scan_token(scanner_t *scanner) {
             return make_token(scanner, TOK_MINUS);
     }
     
-    return error_token(scanner, "unexpected character");
+    token_t tok = error_token(scanner);
+    emit_diag(&scanner->source, WARP_DIAG_ERROR, &tok, "invalid character");
+    return tok;
 }
 
 void scanner_init_text(scanner_t *scanner, const char *text, size_t length) {
