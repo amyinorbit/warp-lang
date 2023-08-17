@@ -50,6 +50,12 @@ typedef struct {
 } parse_rule_t;
 
 static void
+error_silent(compiler_t *comp) {
+    comp->parser.panic = true;
+    comp->parser.had_error = true;
+}
+
+static void
 error_at_varg(compiler_t *comp, const token_t *token, const char *fmt, va_list args) {
     if(comp->parser.panic) return;
     emit_diag_varg(&comp->scanner.source, WARP_DIAG_ERROR, token, fmt, args);
@@ -95,7 +101,11 @@ static void consume(compiler_t *comp, token_kind_t kind, const char *msg) {
         advance(comp);
         return;
     }
-    if(current(comp)->kind != TOK_INVALID) error_current(comp, msg);
+    if(current(comp)->kind != TOK_INVALID) {
+        error_current(comp, msg);
+    } else {
+        error_silent(comp);
+    }
 }
 
 static void emit_byte(compiler_t *comp, uint8_t byte) {
