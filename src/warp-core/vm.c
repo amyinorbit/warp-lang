@@ -102,7 +102,7 @@ warp_result_t warp_run(warp_vm_t *vm) {
     
     for(;;) {
         uint8_t instr;
-#ifdef DEBUG_TRACE_EXEC
+#if DEBUG_TRACE_EXEC == 1
         fprintf(stdout, "\n===\n");
         disassemble_instr(vm->chunk, (int)(vm->ip - vm->chunk->code), stdout);
 

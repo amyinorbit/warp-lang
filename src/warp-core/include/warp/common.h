@@ -23,8 +23,8 @@ extern "C" {
     #define WARP_ENABLE_DEBUG 1
 #endif
     
-// #define DEBUG_PRINT_CODE
-// #define DEBUG_TRACE_EXEC
+#define DEBUG_PRINT_CODE 0
+#define DEBUG_TRACE_EXEC 0
 #define WARP_USE_NAN
     
 #ifndef NDEBUG
