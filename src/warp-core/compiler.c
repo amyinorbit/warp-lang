@@ -28,17 +28,17 @@ typedef enum {
 } precedence_t;
 
 typedef struct {
-    token_t current;
-    token_t previous;
-    bool had_error;
-    bool panic;
+    token_t     current;
+    token_t     previous;
+    bool        had_error;
+    bool        panic;
 } parser_t;
 
 typedef struct {
-    warp_vm_t *vm;
-    chunk_t *chunk;
-    scanner_t scanner;
-    parser_t parser;
+    warp_vm_t   *vm;
+    chunk_t     *chunk;
+    scanner_t   *scanner;
+    parser_t    parser;
 } compiler_t;
 
 typedef void (*parse_fn_t)(compiler_t *comp);
@@ -58,7 +58,7 @@ error_silent(compiler_t *comp) {
 static void
 error_at_varg(compiler_t *comp, const token_t *token, const char *fmt, va_list args) {
     if(comp->parser.panic) return;
-    emit_diag_varg(&comp->scanner.source, WARP_DIAG_ERROR, token, fmt, args);
+    emit_diag_varg(&comp->scanner->source, WARP_DIAG_ERROR, token, fmt, args);
     comp->parser.panic = true;
     comp->parser.had_error = true;
 }
@@ -91,7 +91,7 @@ static void error_current(compiler_t *comp, const char *fmt, ...) {
 static void advance(compiler_t *comp) {
     *previous(comp) = *current(comp);
     for(;;) {
-        *current(comp) = scan_token(&comp->scanner);
+        *current(comp) = scan_token(comp->scanner);
         if(current(comp)->kind != TOK_INVALID) break;
     }
 }
@@ -148,7 +148,7 @@ static void parse_precedence(compiler_t *comp, precedence_t prec);
 
 static void number(compiler_t *comp) {
     double val = strtod(previous(comp)->start, NULL);
-    emit_const(comp, WARP_NUM_VAL(val));
+    emit_const(comp, WARP_FLOAT_VAL(val));
 }
 
 static void literal(compiler_t *comp) {
@@ -170,7 +170,7 @@ static void unary(compiler_t *comp) {
     
     expression(comp);    
     switch(op.kind) {
-    case TOK_MINUS: emit_byte(comp, OP_NEG); break;
+    case TOK_MINUS: emit_byte(comp, OP_NEGF); break;
     case TOK_BANG: emit_byte(comp, OP_NOT); break;
     default: UNREACHABLE(); break;
     }
@@ -182,17 +182,17 @@ static void binary(compiler_t *comp) {
     parse_precedence(comp, rule->precedence + 1);
     
     switch(op.kind) {
-    case TOK_PLUS: emit_byte(comp, OP_ADD); break;
-    case TOK_MINUS: emit_byte(comp, OP_SUB); break;
-    case TOK_STAR: emit_byte(comp, OP_MUL); break;
-    case TOK_SLASH: emit_byte(comp, OP_DIV); break;
+    case TOK_PLUS: emit_byte(comp, OP_ADDF); break;
+    case TOK_MINUS: emit_byte(comp, OP_SUBF); break;
+    case TOK_STAR: emit_byte(comp, OP_MULF); break;
+    case TOK_SLASH: emit_byte(comp, OP_DIVF); break;
     
-    case TOK_LT: emit_byte(comp, OP_LT); break;
-    case TOK_GT: emit_byte(comp, OP_GT); break;
-    case TOK_LTEQ: emit_byte(comp, OP_LTEQ); break;
-    case TOK_GTEQ: emit_byte(comp, OP_GTEQ); break;
-    case TOK_EQEQ: emit_byte(comp, OP_EQ); break;
-    case TOK_BANGEQ: emit_bytes(comp, OP_EQ, OP_NOT); break;
+    case TOK_LT: emit_byte(comp, OP_LTF); break;
+    case TOK_GT: emit_byte(comp, OP_GTF); break;
+    case TOK_LTEQ: emit_byte(comp, OP_LTEQF); break;
+    case TOK_GTEQ: emit_byte(comp, OP_GTEQF); break;
+    case TOK_EQEQ: emit_byte(comp, OP_EQF); break;
+    case TOK_BANGEQ: emit_bytes(comp, OP_EQF, OP_NOT); break;
     
     default: UNREACHABLE(); return;
     }
@@ -294,8 +294,10 @@ bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length) {
     
     UNUSED(error_at);
     
-    scanner_init_text(&comp.scanner, src, length);
+    scanner_t scanner;
+    scanner_init_text(&scanner, src, length);
     comp.vm = vm;
+    comp.scanner = &scanner;
     comp.parser.panic = false;
     comp.parser.had_error = false;
     comp.chunk = chunk;
