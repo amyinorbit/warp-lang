@@ -1,4 +1,6 @@
 set(WARP_CORE_SRC
+    types/obj.c
+    types/str.c
     buffers.c
     chunk.c
     common.c
@@ -13,9 +15,10 @@ set(WARP_CORE_SRC
 set(WARP_CORE_HDR
     include/warp/common.h
     include/warp/instr.h
-    include/warp/string.h
+    include/warp/obj.h
     include/warp/value.h
     include/warp/warp.h
+    types/obj_impl.h
     buffers.h
     chunk.h
     debug.h

@@ -23,6 +23,7 @@ typedef enum {
 } warp_value_kind_t;
 
 typedef struct warp_obj_t warp_obj_t;
+typedef struct warp_str_t warp_str_t;
     
 #ifdef WARP_USE_NAN
 typedef uint64_t warp_value_t;
@@ -46,48 +47,48 @@ static inline warp_value_t double2value(double value) {
 #define TAG_FALSE 2
 #define TAG_TRUE 3
     
-#define WARP_NIL_VAL ((warp_value_t)(QNAN | TAG_NIL))
-#define WARP_FALSE_VAL ((warp_value_t)(QNAN | TAG_FALSE))
-#define WARP_TRUE_VAL ((warp_value_t)(QNAN | TAG_TRUE))
-#define WARP_BOOL_VAL(val) ((val) ? WARP_TRUE_VAL : WARP_FALSE_VAL)
-#define WARP_NUM_VAL(val) (double2value(val))
-#define WARP_OBJ_VAL(val) (SIGN_BIT | QNAN | (uint64_t)((uintptr_t)(val) | )
+#define WARP_NIL_VAL        ((warp_value_t)(QNAN | TAG_NIL))
+#define WARP_FALSE_VAL      ((warp_value_t)(QNAN | TAG_FALSE))
+#define WARP_TRUE_VAL       ((warp_value_t)(QNAN | TAG_TRUE))
+#define WARP_BOOL_VAL(val)  ((val) ? WARP_TRUE_VAL : WARP_FALSE_VAL)
+#define WARP_NUM_VAL(val)   (double2value(val))
+#define WARP_OBJ_VAL(val)   (SIGN_BIT | QNAN | (uint64_t)((uintptr_t)(val)))
     
-#define WARP_AS_BOOL(val) ((val) == WARP_TRUE_VAL)
-#define WARP_AS_NUM(val) (value2double(val))
-#define WARP_AS_OBJ(val) ((warp_obj_t *)(uintptr_t)((val) & ~(SIGN_BIT | QNAN)))
+#define WARP_AS_BOOL(val)   ((val) == WARP_TRUE_VAL)
+#define WARP_AS_NUM(val)    (value2double(val))
+#define WARP_AS_OBJ(val)    ((warp_obj_t *)(uintptr_t)((val) & ~(SIGN_BIT | QNAN)))
 
-#define WARP_IS_NIL(val) ((val) == WARP_NIL_VAL)
-#define WARP_IS_BOOL(val) (((val) | 1) == WARP_TRUE_VAL)
-#define WARP_IS_NUM(val) (((val) & QNAN) != QNAN)
-#define WARP_IS_OBJ(val) (((val) & (SIGN_BIT | QNAN)) == (SIGN_BIT | QNAN))
+#define WARP_IS_NIL(val)    ((val) == WARP_NIL_VAL)
+#define WARP_IS_BOOL(val)   (((val) | 1) == WARP_TRUE_VAL)
+#define WARP_IS_NUM(val)    (((val) & QNAN) != QNAN)
+#define WARP_IS_OBJ(val)    (((val) & (SIGN_BIT | QNAN)) == (SIGN_BIT | QNAN))
     
 #else
     
 typedef struct warp_value_t warp_value_t;
 
 struct warp_value_t {
-    warp_value_kind_t kind;
+    warp_value_kind_t   kind;
     union {
-        warp_obj_t *obj;
-        double num;
-        bool boolean;
+        warp_obj_t      *obj;
+        double          num;
+        bool            boolean;
     } as;
 };
 
-#define WARP_IS_NIL(val) ((val).kind == VAL_NIL)
-#define WARP_IS_BOOL(val) ((val).kind == VAL_BOOL)
-#define WARP_IS_NUM(val) ((val).kind == VAL_NUM)
-#define WARP_IS_OBJ(val) ((val).kind == VAL_OBJ)
+#define WARP_IS_NIL(val)    ((val).kind == VAL_NIL)
+#define WARP_IS_BOOL(val)   ((val).kind == VAL_BOOL)
+#define WARP_IS_NUM(val)    ((val).kind == VAL_NUM)
+#define WARP_IS_OBJ(val)    ((val).kind == VAL_OBJ)
 
-#define WARP_AS_BOOL(val) ((val).as.boolean)
-#define WARP_AS_NUM(val) ((val).as.number)
-#define WARP_AS_OBJ(val) ((val).as.object)
+#define WARP_AS_BOOL(val)   ((val).as.boolean)
+#define WARP_AS_NUM(val)    ((val).as.number)
+#define WARP_AS_OBJ(val)    ((val).as.object)
 
-#define WARP_NIL_VAL ((warp_value_t){VAL_NIL, {.number=0}})
-#define WARP_BOOL_VAL(val) ((warp_value_t){VAL_BOOL, {.boolean=!!(val)}})
-#define WARP_NUM_VAL(val) ((warp_value_t){VAL_NUM, {.num=(val)}})
-#define WARP_OBJ_VAL(val) ((warp_value_t){VAL_NUM, {.obj=(val)}})
+#define WARP_NIL_VAL        ((warp_value_t){VAL_NIL, {.number=0}})
+#define WARP_BOOL_VAL(val)  ((warp_value_t){VAL_BOOL, {.boolean=!!(val)}})
+#define WARP_NUM_VAL(val)   ((warp_value_t){VAL_NUM, {.num=(val)}})
+#define WARP_OBJ_VAL(val)   ((warp_value_t){VAL_NUM, {.obj=(val)}})
     
 #endif
 

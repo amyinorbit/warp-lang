@@ -7,6 +7,7 @@
 // =^•.•^=
 //===--------------------------------------------------------------------------------------------===
 #include <warp/instr.h>
+#include <warp/obj.h>
 #include "compiler.h"
 #include "scanner.h"
 #include "diag_impl.h"
@@ -151,6 +152,13 @@ static void number(compiler_t *comp) {
     emit_const(comp, WARP_NUM_VAL(val));
 }
 
+static void string(compiler_t *comp) {
+    emit_const(comp, WARP_OBJ_VAL(warp_copy_c_str(
+        comp->vm,
+        previous(comp)->start+1,
+        previous(comp)->length-2)));
+}
+
 static void literal(compiler_t *comp) {
     token_t tok = *previous(comp);
     switch(tok.kind) {
@@ -246,7 +254,7 @@ const parse_rule_t rules[] = {
     [TOK_ARROW] =       {NULL,      NULL,       PREC_NONE},
     [TOK_THEN] =        {NULL,      NULL,       PREC_NONE},
     [TOK_NUMBER] =      {number,    NULL,       PREC_NONE},
-    [TOK_STRING] =      {NULL,      NULL,       PREC_NONE},
+    [TOK_STRING] =      {string,    NULL,       PREC_NONE},
     [TOK_IDENTIFIER] =  {NULL,      NULL,       PREC_NONE},
     [TOK_SELF] =        {NULL,      NULL,       PREC_NONE},
     [TOK_TRUE] =        {literal,   NULL,       PREC_NONE},

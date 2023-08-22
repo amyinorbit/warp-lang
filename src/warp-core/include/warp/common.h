@@ -60,6 +60,7 @@ void warp_log(const char *filename, int line, const char *fmt, ...);
 
 
 typedef struct warp_vm_t warp_vm_t;
+typedef struct warp_obj_t warp_obj_t;
 
 #ifdef __cplusplus
 } // extern "C"

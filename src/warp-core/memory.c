@@ -20,7 +20,7 @@ void *default_allocator(void *ptr, size_t req) {
     return result;
 }
 
-void *vm_alloc(warp_vm_t *vm, void *ptr, size_t old_size, size_t new_size) {
+void *warp_alloc(warp_vm_t *vm, void *ptr, size_t old_size, size_t new_size) {
     ASSERT(vm);
     
     vm->allocated += (new_size - old_size);

@@ -7,6 +7,7 @@
 // =^•.•^=
 //===--------------------------------------------------------------------------------------------===
 #include "value_impl.h"
+#include "types/obj_impl.h"
 
 static inline warp_value_kind_t value_kind(warp_value_t val) {
 #ifdef WARP_USE_NAN
