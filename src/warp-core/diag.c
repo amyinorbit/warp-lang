@@ -8,7 +8,7 @@
 //===--------------------------------------------------------------------------------------------===
 #include "diag_impl.h"
 #include <term/colors.h>
-
+#include <tgmath.h>
 
 static const char *diag_level_str(warp_diag_level_t level) {
     switch(level) {
@@ -47,8 +47,9 @@ void warp_print_diag(const warp_diag_t *diag, void *user_info) {
         fputc(' ', stderr);
     }
     term_set_fg(stderr, TERM_GREEN);
-    for(int i = 0; i < diag->span.length; ++i) {
-        fputc(i ? '~' : '^', stderr);
+    fputc('^', stderr);
+    for(int i = 1; i < diag->span.length; ++i) {
+        fputc('~', stderr);
     }
     term_style_reset(stderr);
     fputc('\n', stderr);
@@ -60,8 +61,9 @@ void warp_print_diag(const warp_diag_t *diag, void *user_info) {
 }
 
 const char *get_line_start(const src_t *src, const token_t *token) {
-    CHECK(token->start >= src->start && token->start < src->end);
+    CHECK(token->start >= src->start && token->start <= src->end);
     const char *ptr = token->start;
+    if(*ptr == '\n') ptr -= 1;
     while(ptr > src->start && ptr[-1] != '\n') {
         ptr--;
     }
@@ -70,8 +72,9 @@ const char *get_line_start(const src_t *src, const token_t *token) {
 
 const char *get_line_start_n(const src_t *src, int line) {
     const char *ptr = src->start;
+    if(*ptr == '\n') ptr -= 1;
     int cur = 1;
-    while(ptr < src->end && cur != line) {
+    while(ptr <= src->end && cur != line) {
         if(*(ptr++) == '\n')
             cur += 1;
     }
@@ -79,7 +82,7 @@ const char *get_line_start_n(const src_t *src, int line) {
 }
 
 const char *get_line_end(const src_t *src, const char *cursor) {
-    CHECK(cursor >= src->start && cursor < src->end);
+    CHECK(cursor >= src->start && cursor <= src->end);
     const char *ptr = cursor;
     while(ptr < src->end && *ptr != '\n' && *ptr != '\r') {
         ptr++;

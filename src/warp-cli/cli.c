@@ -38,6 +38,10 @@ static void repl() {
     
     char *line = NULL;
     while((line = line_get(line_ed))) {
+        size_t len = strlen(line);
+        if(line[len-1] == '\n') {
+            line[len-1] = '\0';
+        }
         warp_interpret(vm, line, strlen(line));
     }
     
