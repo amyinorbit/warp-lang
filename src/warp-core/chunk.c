@@ -28,8 +28,8 @@ void chunk_fini(warp_vm_t *vm, chunk_t *chunk) {
     
     FREE_ARRAY(vm, chunk->code, uint8_t, chunk->capacity);
     FREE_ARRAY(vm, chunk->lines, int, chunk->capacity);
-    chunk_init(vm, chunk);
     val_buf_fini(vm, &chunk->constants);
+    chunk_init(vm, chunk);
 }
 
 void chunk_write(warp_vm_t *vm, chunk_t *chunk, uint8_t byte, int line) {

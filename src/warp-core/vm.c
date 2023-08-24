@@ -13,6 +13,7 @@
 #include "memory.h"
 #include "debug.h"
 #include "value_impl.h"
+#include "types/obj_impl.h"
 #include <stdarg.h>
 
 warp_vm_t *warp_vm_new(const warp_cfg_t *cfg) {
@@ -22,12 +23,19 @@ warp_vm_t *warp_vm_new(const warp_cfg_t *cfg) {
     CHECK(vm);
     
     vm->allocator = alloc;
+    vm->objects = NULL;
     
     return vm;
 }
 
 void warp_vm_destroy(warp_vm_t *vm) {
     ASSERT(vm);
+    for(warp_obj_t *obj = vm->objects; obj != NULL;) {
+        warp_obj_t *next = obj->next;
+        obj_destroy(vm, obj);
+        obj = next;
+    }
+    vm->objects = NULL;
     vm->allocator(vm, 0);
 }
 

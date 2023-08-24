@@ -17,6 +17,8 @@
 
 warp_obj_t *alloc_obj(warp_vm_t *vm, size_t size, warp_obj_kind_t kind);
 void init_obj(warp_vm_t *vm, warp_obj_t *obj, warp_obj_kind_t kind);
+bool obj_equals(const warp_obj_t *a, const warp_obj_t *b);
+void obj_destroy(warp_vm_t *vm, warp_obj_t *obj);
 
 // MARK: - String interface
 

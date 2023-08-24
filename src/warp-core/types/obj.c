@@ -9,7 +9,17 @@
 */
 #include "obj_impl.h"
 #include "../memory.h"
+#include "../warp_internal.h"
 #include <stdio.h>
+#include <string.h>
+
+void obj_destroy(warp_vm_t *vm, warp_obj_t *obj) {
+    switch(obj->kind) {
+    case WARP_OBJ_STR:
+        DEALLOCATE_SARRAY(vm, obj, warp_str_t, char, ((warp_str_t *)obj)->length + 1);
+        break;
+    }
+}
 
 warp_obj_t *alloc_obj(warp_vm_t *vm, size_t size, warp_obj_kind_t kind) {
     warp_obj_t *obj = warp_alloc(vm, NULL, 0, size);
@@ -20,6 +30,8 @@ warp_obj_t *alloc_obj(warp_vm_t *vm, size_t size, warp_obj_kind_t kind) {
 void init_obj(warp_vm_t *vm, warp_obj_t *obj, warp_obj_kind_t kind) {
     (void)vm;
     obj->kind = kind;
+    obj->next = vm->objects;
+    vm->objects = obj;
 }
 
 void print_obj(warp_vm_t *vm, warp_value_t val) {
@@ -30,4 +42,15 @@ void print_obj(warp_vm_t *vm, warp_value_t val) {
         printf("%s", WARP_AS_CSTR(val));
         break;
     }
+}
+
+bool obj_equals(const warp_obj_t *a, const warp_obj_t *b) {
+    if(a == b) return true;
+    if(a->kind != b->kind) return false;
+    switch(a->kind) {
+    case WARP_OBJ_STR:
+        return ((warp_str_t *)a)->length == ((warp_str_t *)b)->length
+            && memcmp(((warp_str_t *)a)->data, ((warp_str_t *)b)->data, ((warp_str_t *)a)->length) == 0;
+    }
+    return false;
 }

@@ -20,6 +20,7 @@ typedef enum {
 
 struct warp_obj_t {
     warp_obj_kind_t kind;
+    warp_obj_t      *next;
 };
 
 static inline bool warp_is_obj_kind(warp_value_t val, warp_obj_kind_t kind) {

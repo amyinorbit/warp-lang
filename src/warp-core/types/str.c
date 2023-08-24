@@ -9,6 +9,7 @@
 */
 #include "obj_impl.h"
 #include <string.h>
+#include <stdio.h>
 
 // void warp_str_destroy(warp_vm_t *vm, warp_str_t *str) {
 //

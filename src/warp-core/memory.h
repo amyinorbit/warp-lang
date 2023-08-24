@@ -23,6 +23,12 @@
 
 #define ALLOCATE(vm, T) \
     warp_alloc((vm), NULL, 0, sizeof(T))
+        
+#define DEALLOCATE(vm, ptr) \
+    warp_alloc((vm, ptr, sizeof(*typeof(ptr)), 0))
+        
+#define DEALLOCATE_SARRAY(vm, ptr, T1, T2, count) \
+    warp_alloc((vm), (ptr), sizeof(T1) + (count) * sizeof(T2), 0)
 
 void *default_allocator(void *ptr, size_t req);
 void *warp_alloc(warp_vm_t *vm, void *ptr, size_t old_size, size_t new_size);

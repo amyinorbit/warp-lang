@@ -31,7 +31,8 @@
     }                                                                                              \
                                                                                                    \
     void name##_buf_fini(warp_vm_t* vm, name##_buf_t* buffer) {                                    \
-        FREE_ARRAY(vm, buffer->data, T, buffer->capacity * sizeof(T));                             \
+        if(buffer->data)                                                                           \
+            FREE_ARRAY(vm, buffer->data, T, buffer->capacity);                                     \
         name##_buf_init(buffer);                                                                   \
     }                                                                                              \
                                                                                                    \
