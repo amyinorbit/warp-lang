@@ -28,4 +28,6 @@ struct warp_str_t {
     char        data[];
 };
 
+warp_str_t *alloc_str(warp_vm_t *vm, int length);
+
 #endif /* ifndef _OBJ_IMPL_H_ */

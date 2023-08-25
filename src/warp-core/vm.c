@@ -88,6 +88,12 @@ static void runtime_error(warp_vm_t *vm, const char *fmt, ...) {
     fputc('\n', stderr);
 }
 
+static void concatenate(warp_vm_t *vm) {
+    warp_str_t *b = WARP_AS_STR(pop(vm));
+    warp_str_t *a = WARP_AS_STR(pop(vm));
+    
+    push(vm, WARP_OBJ_VAL(warp_concat_str(vm, a, b)));
+}
 
 warp_result_t warp_run(warp_vm_t *vm) {
     ASSERT(vm);
@@ -160,7 +166,21 @@ warp_result_t warp_run(warp_vm_t *vm) {
             break;
         }
             
-        case OP_ADD: BINARY(NUM, +); break;
+        case OP_ADD:
+            if(WARP_IS_STR(peek(vm, 0)) && WARP_IS_STR(peek(vm, 1))) {
+                concatenate(vm);
+            } else if(WARP_IS_NUM(peek(vm, 0)) && WARP_IS_NUM(peek(vm, 1))) {
+                double b = WARP_AS_NUM(pop(vm));
+                double a = WARP_AS_NUM(pop(vm));
+                push(vm, WARP_NUM_VAL(a + b));
+            } else {
+                runtime_error(vm, "invalid operands to `+'");
+                return WARP_RUNTIME_ERROR;
+            }
+            break;
+        
+        
+        // BINARY(NUM, +); break;
         case OP_SUB: BINARY(NUM, -); break;
         case OP_MUL: BINARY(NUM, *); break;
         case OP_DIV: BINARY(NUM, /); break;

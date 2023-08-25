@@ -36,6 +36,7 @@ static inline bool warp_is_obj_kind(warp_value_t val, warp_obj_kind_t kind) {
 // MARK: - String interface
 
 warp_str_t *warp_copy_c_str(warp_vm_t *vm, const char *c_str, int length);
+warp_str_t *warp_concat_str(warp_vm_t *vm, const warp_str_t *a, const warp_str_t *b);
 int warp_str_get_length(const warp_str_t *str);
 const char *warp_str_get_c(const warp_str_t *str);
 
