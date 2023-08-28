@@ -184,7 +184,6 @@ static inline bool is_digit(unicode_scalar_t c) {
     return (c >= '0' && c <= '9');
 }
 
-// static void string_error(parser_t *parser, )
 
 static token_t string(parser_t *parser) {
     str_buf_t str;
@@ -217,7 +216,11 @@ static token_t string(parser_t *parser) {
             in_esc_seq = true;
         } else {
             // TODO: There needs to be a better way of adding unicode to a string
-            str_buf_write(parser->vm, &str, c);
+            char data[8];
+            int size = unicode_utf8_write(c, data, 8);
+            for(int i = 0; i < size; ++i) {
+                str_buf_write(parser->vm, &str, data[i]);
+            }
         }
         lex_advance(parser);
     }
