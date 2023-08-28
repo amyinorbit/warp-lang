@@ -18,11 +18,27 @@ void emit_diag(
     const char *fmt,
     ...
 );
+    
+void emit_diag_loc(
+    const src_t *src,
+    warp_diag_level_t level,
+    int line, const char *loc,
+    const char *fmt,
+    ...
+);
 
 void emit_diag_varg(
     const src_t *src,
     warp_diag_level_t level,
     const token_t *token,
+    const char *fmt,
+    va_list args
+);
+    
+void emit_diag_loc_varg(
+    const src_t *src,
+    warp_diag_level_t level,
+    int line, const char *loc,
     const char *fmt,
     va_list args
 );

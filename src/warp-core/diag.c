@@ -60,9 +60,9 @@ void warp_print_diag(const warp_diag_t *diag, void *user_info) {
     fputc('\n', stderr);
 }
 
-const char *get_line_start(const src_t *src, const token_t *token) {
-    CHECK(token->start >= src->start && token->start <= src->end);
-    const char *ptr = token->start;
+const char *get_line_start(const src_t *src, const char *loc) {
+    CHECK(loc >= src->start && loc <= src->end);
+    const char *ptr = loc;
     if(*ptr == '\n') ptr -= 1;
     while(ptr > src->start && ptr[-1] != '\n') {
         ptr--;
@@ -110,6 +110,29 @@ void emit_diag_varg(
     const char *fmt,
     va_list args
 ) {
+    emit_diag_loc_varg(src, level, token->line, token->start, fmt, args);
+}
+
+void emit_diag_loc(
+    const src_t *src,
+    warp_diag_level_t level,
+    int line, const char *loc,
+    const char *fmt,
+    ...
+) {
+    va_list args;
+    va_start(args, fmt);
+    emit_diag_loc_varg(src, level, line, loc, fmt, args);
+    va_end(args);
+}
+
+void emit_diag_loc_varg(
+    const src_t *src,
+    warp_diag_level_t level,
+    int line, const char *loc,
+    const char *fmt,
+    va_list args
+) {
     va_list copy;
     va_copy(copy, args);
     size_t size = vsnprintf(NULL, 0, fmt, copy) + 1;
@@ -120,12 +143,12 @@ void emit_diag_varg(
     
     diag.level = level;
     diag.message = message;
-    diag.line_start = get_line_start(src, token);
-    diag.line_end = get_line_end(src, token->start);
+    diag.line_start = get_line_start(src, loc);
+    diag.line_end = get_line_end(src, loc);
     
-    diag.span.length = token->length;
-    diag.span.line = token->line;
-    diag.span.column = 1 + (int)(token->start - diag.line_start);
+    diag.span.length = 1;
+    diag.span.line = line;
+    diag.span.column = 1 + (int)(loc - diag.line_start);
     diag.fname = src->fname;
     
     // TODO: call user function if present
