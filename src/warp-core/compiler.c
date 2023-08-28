@@ -9,7 +9,8 @@
 #include <warp/instr.h>
 #include <warp/obj.h>
 #include "compiler.h"
-#include "scanner.h"
+#include "parser.h"
+#include "types/obj_impl.h"
 #include "diag_impl.h"
 #include "debug.h"
 #include <stdarg.h>
@@ -29,17 +30,9 @@ typedef enum {
 } precedence_t;
 
 typedef struct {
-    token_t     current;
-    token_t     previous;
-    bool        had_error;
-    bool        panic;
-} parser_t;
-
-typedef struct {
     warp_vm_t   *vm;
     chunk_t     *chunk;
-    scanner_t   *scanner;
-    parser_t    parser;
+    parser_t    *parser;
 } compiler_t;
 
 typedef void (*parse_fn_t)(compiler_t *comp);
@@ -50,67 +43,12 @@ typedef struct {
     precedence_t precedence;
 } parse_rule_t;
 
-static void
-error_silent(compiler_t *comp) {
-    comp->parser.panic = true;
-    comp->parser.had_error = true;
-}
-
-static void
-error_at_varg(compiler_t *comp, const token_t *token, const char *fmt, va_list args) {
-    if(comp->parser.panic) return;
-    emit_diag_varg(&comp->scanner->source, WARP_DIAG_ERROR, token, fmt, args);
-    comp->parser.panic = true;
-    comp->parser.had_error = true;
-}
-
-static inline token_t *previous(compiler_t *comp) { return &comp->parser.previous; }
-static inline token_t *current(compiler_t *comp) { return &comp->parser.current; }
-static inline chunk_t *current_chunk(compiler_t *comp) { return comp->chunk; }
-
-static void error_at(compiler_t *comp, const token_t *token, const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    error_at_varg(comp, token, fmt, args);
-    va_end(args);
-}
-
-static void error(compiler_t *comp, const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    error_at_varg(comp, previous(comp), fmt, args);
-    va_end(args);
-}
-
-static void error_current(compiler_t *comp, const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    error_at_varg(comp, current(comp), fmt, args);
-    va_end(args);
-}
-
-static void advance(compiler_t *comp) {
-    *previous(comp) = *current(comp);
-    for(;;) {
-        *current(comp) = scan_token(comp->scanner);
-        if(current(comp)->kind != TOK_INVALID) break;
-    }
-}
-
-static void consume(compiler_t *comp, token_kind_t kind, const char *msg) {
-    if(current(comp)->kind == kind) {
-        advance(comp);
-        return;
-    }
-    if(current(comp)->kind != TOK_INVALID) {
-        error_current(comp, msg);
-    } else {
-        error_silent(comp);
-    }
+static chunk_t *current_chunk(compiler_t *comp) {
+    return comp->chunk;
 }
 
 static void emit_byte(compiler_t *comp, uint8_t byte) {
-    chunk_write(comp->vm, current_chunk(comp), byte, previous(comp)->line);
+    chunk_write(comp->vm, current_chunk(comp), byte, previous(comp->parser)->line);
 }
 
 static void emit_bytes(compiler_t *comp, uint8_t byte1, uint8_t byte2) {
@@ -135,7 +73,7 @@ static void emit_const(compiler_t *comp, warp_value_t value) {
     } else if(idx < UINT16_MAX) {
         emit_bytes_long(comp, OP_LCONST, (uint16_t)idx);
     } else {
-        error(comp, "too many constants in one bytecode unit");
+        error_at(comp->parser, previous(comp->parser), "too many constants in one bytecode unit");
     }
 }
 
@@ -148,19 +86,15 @@ static const parse_rule_t *get_rule(token_kind_t kind);
 static void parse_precedence(compiler_t *comp, precedence_t prec);
 
 static void number(compiler_t *comp) {
-    double val = strtod(previous(comp)->start, NULL);
-    emit_const(comp, WARP_NUM_VAL(val));
+    emit_const(comp, previous(comp->parser)->value);
 }
 
 static void string(compiler_t *comp) {
-    emit_const(comp, WARP_OBJ_VAL(warp_copy_c_str(
-        comp->vm,
-        previous(comp)->start+1,
-        previous(comp)->length-2)));
+    emit_const(comp, previous(comp->parser)->value);
 }
 
 static void literal(compiler_t *comp) {
-    token_t tok = *previous(comp);
+    token_t tok = *previous(comp->parser);
     switch(tok.kind) {
         case TOK_TRUE: emit_byte(comp, OP_TRUE); break;
         case TOK_FALSE: emit_byte(comp, OP_FALSE); break;
@@ -174,7 +108,7 @@ static void expression(compiler_t *comp) {
 }
 
 static void unary(compiler_t *comp) {
-    token_t op = *previous(comp);
+    token_t op = *previous(comp->parser);
     
     expression(comp);    
     switch(op.kind) {
@@ -185,7 +119,7 @@ static void unary(compiler_t *comp) {
 }
 
 static void binary(compiler_t *comp) {
-    token_t op = *previous(comp);
+    token_t op = *previous(comp->parser);
     const parse_rule_t *rule = get_rule(op.kind);
     parse_precedence(comp, rule->precedence + 1);
     
@@ -208,7 +142,7 @@ static void binary(compiler_t *comp) {
 
 static void grouping(compiler_t *comp) {
     expression(comp);
-    consume(comp, TOK_RPAREN, "missing ')' after expression");
+    consume(comp->parser, TOK_RPAREN, "missing ')' after expression");
 }
 
 const parse_rule_t rules[] = {
@@ -277,17 +211,17 @@ const parse_rule_t rules[] = {
 };
 
 static void parse_precedence(compiler_t *comp, precedence_t prec) {
-    advance(comp);
-    parse_fn_t prefix = get_rule(previous(comp)->kind)->prefix;
+    advance(comp->parser);
+    parse_fn_t prefix = get_rule(previous(comp->parser)->kind)->prefix;
     if(!prefix) {
-        error(comp, "expected an expression");
+        error_at(comp->parser, previous(comp->parser), "expected an expression");
         return;
     }
     prefix(comp);
     
-    while(prec <= get_rule(current(comp)->kind)->precedence) {
-        advance(comp);
-        parse_fn_t infix = get_rule(previous(comp)->kind)->infix;
+    while(prec <= get_rule(current(comp->parser)->kind)->precedence) {
+        advance(comp->parser);
+        parse_fn_t infix = get_rule(previous(comp->parser)->kind)->infix;
         infix(comp);
     }
 }
@@ -300,21 +234,17 @@ static const parse_rule_t *get_rule(token_kind_t kind) {
 bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length) {
     compiler_t comp;
     
-    UNUSED(error_at);
-    
-    scanner_t scanner;
-    scanner_init_text(&scanner, src, length);
+    parser_t parser;
+    parser_init_text(&parser, vm, src, length);
     comp.vm = vm;
-    comp.scanner = &scanner;
-    comp.parser.panic = false;
-    comp.parser.had_error = false;
+    comp.parser = &parser;
     comp.chunk = chunk;
     
-    advance(&comp);
+    advance(comp.parser);
     expression(&comp);
     end_compiler(&comp);
     
-    consume(&comp, TOK_EOF, "expected end of expression");
+    consume(comp.parser, TOK_EOF, "expected end of expression");
     
 #if DEBUG_PRINT_CODE == 1
     if(!comp.parser.had_error) {
@@ -322,6 +252,6 @@ bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length) {
     }
 #endif
     
-    return !comp.parser.had_error;
+    return !parser.had_error;
 }
 

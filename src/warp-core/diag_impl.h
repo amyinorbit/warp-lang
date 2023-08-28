@@ -9,7 +9,7 @@
 #pragma once
 #include <warp/diag.h>
 #include <stdarg.h>
-#include "scanner.h"
+#include "parser.h"
 
 void emit_diag(
     const src_t *src,

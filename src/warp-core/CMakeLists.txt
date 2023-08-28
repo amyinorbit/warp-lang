@@ -7,7 +7,7 @@ set(WARP_CORE_SRC
     debug.c
     vm.c
     memory.c
-    scanner.c
+    parser.c
     diag.c
     compiler.c
     value.c
@@ -19,6 +19,7 @@ set(WARP_CORE_HDR
     include/warp/value.h
     include/warp/warp.h
     types/obj_impl.h
+    parser.h
     buffers.h
     chunk.h
     debug.h

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------===
-// scanner.h
+// parser.h
 //
 // Created by Amy Parent <amy@amyparent.com>
 // Copyright (c) 2021 Amy Parent
@@ -10,6 +10,7 @@
 #include <warp/common.h>
 #include <warp/value.h>
 #include <unic/unic.h>
+#include <stdarg.h>
 
 typedef enum {
     // Bracket types
@@ -96,22 +97,41 @@ typedef struct {
     const char *end;
 } src_t;
 
-typedef struct scanner_s {
-    src_t source;
-    const char *start;
-    const char *current;
-    int line;
-    unicode_scalar_t copy;
-} scanner_t;
-
 typedef struct token_s {
-    token_kind_t    kind;
-    int             length;
-    int             line;
-    const char      *start;
-    warp_value_t    value;
+    token_kind_t        kind;
+    int                 length;
+    int                 line;
+    const char          *start;
+    warp_value_t        value;
 } token_t;
 
-void scanner_init_text(scanner_t *scanner, const char *text, size_t length);
-token_t scan_token(scanner_t *scanner);
+typedef struct parser_s {
+    warp_vm_t           *vm;
+    
+    // Scanner info
+    src_t               source;
+    const char          *start;
+    const char          *current;
+    int                 line;
+    unicode_scalar_t    copy;
+    
+    // Parser/RD info
+    token_t             current_token;
+    token_t             previous_token;
+    bool                had_error;
+    bool                panic;
+} parser_t;
+
+void parser_init_text(parser_t *parser, warp_vm_t *vm, const char *text, size_t length);
+token_t scan_token(parser_t *parser);
 const char *token_name(token_kind_t kind);
+
+void error_silent(parser_t *parser);
+void error_at(parser_t *parser, const token_t *token, const char *fmt, ...);
+void error_at_varg(parser_t *parser, const token_t *token, const char *fmt, va_list args);
+
+token_t *previous(parser_t *parser);
+token_t *current(parser_t *parser);
+
+void advance(parser_t *parser);
+void consume(parser_t *parser, token_kind_t kind, const char *msg);
