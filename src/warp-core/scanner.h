@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------===
 #pragma once
 #include <warp/common.h>
+#include <warp/value.h>
 #include <unic/unic.h>
 
 typedef enum {
@@ -104,10 +105,11 @@ typedef struct scanner_s {
 } scanner_t;
 
 typedef struct token_s {
-    token_kind_t kind;
-    int length;
-    int line;
-    const char *start;
+    token_kind_t    kind;
+    int             length;
+    int             line;
+    const char      *start;
+    warp_value_t    value;
 } token_t;
 
 void scanner_init_text(scanner_t *scanner, const char *text, size_t length);

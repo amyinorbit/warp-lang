@@ -24,6 +24,8 @@ typedef enum {
 
 typedef struct warp_obj_t warp_obj_t;
 typedef struct warp_str_t warp_str_t;
+typedef struct warp_list_t warp_list_t;
+typedef struct warp_table_t warp_table_t;
     
 #ifdef WARP_USE_NAN
 typedef uint64_t warp_value_t;
