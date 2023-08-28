@@ -133,7 +133,7 @@ static void emit_const(compiler_t *comp, warp_value_t value) {
     if(idx < UINT8_MAX) {
         emit_bytes(comp, OP_CONST, (uint8_t)idx);
     } else if(idx < UINT16_MAX) {
-        emit_bytes_long(comp, OP_CONST, (uint16_t)idx);
+        emit_bytes_long(comp, OP_LCONST, (uint16_t)idx);
     } else {
         error(comp, "too many constants in one bytecode unit");
     }
