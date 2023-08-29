@@ -26,8 +26,11 @@ static const size_t instr_count = sizeof(instr_data)/sizeof(instr_data_t);
 static void print_obj(warp_value_t val, FILE *out) {
     
     switch(WARP_OBJ_KIND(val)) {
-        case WARP_OBJ_STR:
+    case WARP_OBJ_STR:
         fprintf(out, "%s", WARP_AS_CSTR(val));
+        break;
+    case WARP_OBJ_MAP:
+        fprintf(out, "<map>");
         break;
     }
 }

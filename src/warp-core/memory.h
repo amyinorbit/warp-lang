@@ -10,13 +10,21 @@
 #include <warp/warp.h>
 #include <stdlib.h>
 
-#define GROW_CAPACITY(cap) (((cap) < 8) ? 8 : (cap) * 2)
+#define DEFAULT_CAPACITY    (32)
+
+#define GROW_CAPACITY(cap) ((cap) == 0 ? DEFAULT_CAPACITY : (cap) * 2)
 
 #define GROW_ARRAY(vm, array, T, old_count, new_count) \
     warp_alloc((vm), (array), old_count * sizeof(T), new_count * sizeof(T))
 
+#define FREE(vm, ptr, T) \
+    warp_alloc((vm), (ptr), sizeof(T), 0)
+
 #define FREE_ARRAY(vm, array, T, old_count) \
     warp_alloc((vm), (array), old_count * sizeof(T), 0)
+        
+#define ALLOCATE_ARRAY(vm, T, count) \
+    warp_alloc((vm), NULL, 0, sizeof(T) * (count))
 
 #define ALLOCATE_SARRAY(vm, T, size) \
     (T *)warp_alloc((vm), NULL, 0, sizeof(T) + (size))

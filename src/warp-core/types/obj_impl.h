@@ -26,12 +26,29 @@ void obj_destroy(warp_vm_t *vm, warp_obj_t *obj);
 struct warp_str_t {
     warp_obj_t  obj;
     uint32_t    hash;
-    int         length;
+    warp_uint_t length;
     char        data[];
 };
 
 warp_str_t *alloc_str(warp_vm_t *vm, int length);
+void warp_str_free(warp_vm_t *vm, warp_str_t *str);
 
+// MARK: - Table interface
 
+typedef struct entry_t {
+    warp_value_t    key;
+    warp_value_t    value;
+} entry_t;
+
+struct warp_map_t {
+    warp_obj_t      obj;
+    warp_uint_t     capacity;
+    warp_uint_t     load;
+    warp_uint_t     count;
+    entry_t         *entries;
+};
+
+warp_str_t *warp_map_find_str(warp_map_t *map, const char *str, warp_uint_t length, uint32_t hash);
+void warp_map_free(warp_vm_t *vm, warp_map_t *map);
 
 #endif /* ifndef _OBJ_IMPL_H_ */

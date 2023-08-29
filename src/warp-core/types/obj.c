@@ -16,7 +16,10 @@
 void obj_destroy(warp_vm_t *vm, warp_obj_t *obj) {
     switch(obj->kind) {
     case WARP_OBJ_STR:
-        DEALLOCATE_SARRAY(vm, obj, warp_str_t, char, ((warp_str_t *)obj)->length + 1);
+        warp_str_free(vm, (warp_str_t *)obj);
+        break;
+    case WARP_OBJ_MAP:
+        warp_map_free(vm, (warp_map_t *)obj);
         break;
     }
 }
@@ -38,8 +41,11 @@ void print_obj(warp_vm_t *vm, warp_value_t val) {
     (void)vm;
     
     switch(WARP_OBJ_KIND(val)) {
-        case WARP_OBJ_STR:
+    case WARP_OBJ_STR:
         printf("%s", WARP_AS_CSTR(val));
+        break;
+    case WARP_OBJ_MAP:
+        printf("<map %p>", (void *)WARP_AS_OBJ(val));
         break;
     }
 }
@@ -51,6 +57,8 @@ bool obj_equals(const warp_obj_t *a, const warp_obj_t *b) {
     case WARP_OBJ_STR:
         return ((warp_str_t *)a)->length == ((warp_str_t *)b)->length
             && memcmp(((warp_str_t *)a)->data, ((warp_str_t *)b)->data, ((warp_str_t *)a)->length) == 0;
+    default:
+        break;
     }
     return false;
 }

@@ -24,12 +24,16 @@ warp_vm_t *warp_vm_new(const warp_cfg_t *cfg) {
     
     vm->allocator = alloc;
     vm->objects = NULL;
+    vm->strings = warp_map_new(vm);
     
     return vm;
 }
 
 void warp_vm_destroy(warp_vm_t *vm) {
     ASSERT(vm);
+    printf("number of strings: %u\n", vm->strings->load);
+    warp_map_free(vm, vm->strings);
+    vm->strings = NULL;
     for(warp_obj_t *obj = vm->objects; obj != NULL;) {
         warp_obj_t *next = obj->next;
         obj_destroy(vm, obj);

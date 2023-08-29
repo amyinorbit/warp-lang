@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------===
 #pragma once
 #include <warp/common.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,10 +23,13 @@ typedef enum {
     VAL_OBJ,
 } warp_value_kind_t;
 
-typedef struct warp_obj_t warp_obj_t;
-typedef struct warp_str_t warp_str_t;
-typedef struct warp_list_t warp_list_t;
-typedef struct warp_table_t warp_table_t;
+typedef struct warp_obj_t   warp_obj_t;
+typedef struct warp_str_t   warp_str_t;
+typedef struct warp_list_t  warp_list_t;
+typedef struct warp_map_t   warp_map_t;
+
+typedef int32_t      warp_int_t;
+typedef uint32_t     warp_uint_t;
     
 #ifdef WARP_USE_NAN
 typedef uint64_t warp_value_t;

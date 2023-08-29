@@ -43,7 +43,8 @@ bool value_equals(warp_value_t a, warp_value_t b) {
     case VAL_NIL: return true;
     case VAL_BOOL: return WARP_AS_BOOL(a) == WARP_AS_BOOL(b);
     case VAL_NUM: return WARP_AS_NUM(a) == WARP_AS_NUM(b);
-    case VAL_OBJ: return obj_equals(WARP_AS_OBJ(a), WARP_AS_OBJ(b));
+    case VAL_OBJ: return return WARP_AS_OBJ(a) == WARP_AS_OBJ(b);
+    //obj_equals(WARP_AS_OBJ(a), WARP_AS_OBJ(b));
     default: break;
     }
     UNREACHABLE();
