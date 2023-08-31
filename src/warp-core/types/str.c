@@ -55,7 +55,7 @@ warp_str_t *warp_concat_str(warp_vm_t *vm, const warp_str_t *a, const warp_str_t
     c_str[length] = '\0';
     
     warp_str_t *str = warp_copy_c_str(vm, c_str, length);
-    FREE_ARRAY(vm, str, char, length+1);
+    FREE_ARRAY(vm, c_str, char, length+1);
     return str;
 }
 
