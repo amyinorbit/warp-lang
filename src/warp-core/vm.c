@@ -31,7 +31,7 @@ warp_vm_t *warp_vm_new(const warp_cfg_t *cfg) {
 
 void warp_vm_destroy(warp_vm_t *vm) {
     ASSERT(vm);
-    printf("number of strings: %u\n", vm->strings->load);
+	
     warp_map_free(vm, vm->strings);
     vm->strings = NULL;
     for(warp_obj_t *obj = vm->objects; obj != NULL;) {
@@ -200,6 +200,14 @@ warp_result_t warp_run(warp_vm_t *vm) {
             push(vm, WARP_BOOL_VAL(value_equals(a, b)));
             break;
         }
+		
+		case OP_PRINT:
+	        term_set_fg(stdout, TERM_GREEN);
+	        printf("=> ");
+	        term_style_reset(stdout);
+	        print_value(pop(vm), stdout);
+	        printf("\n");
+			break;
             
         case OP_RETURN:
             term_set_fg(stdout, TERM_GREEN);
