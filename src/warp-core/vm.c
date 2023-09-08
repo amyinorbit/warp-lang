@@ -205,7 +205,7 @@ warp_result_t warp_run(warp_vm_t *vm) {
 	        term_set_fg(stdout, TERM_GREEN);
 	        printf("=> ");
 	        term_style_reset(stdout);
-	        print_value(pop(vm), stdout);
+	        print_value(peek(vm, 0), stdout);
 	        printf("\n");
 			break;
             
