@@ -127,11 +127,11 @@ static unicode_scalar_t lex_advance(parser_t *parser) {
     return size ? current : '\0';
 }
 
-static unicode_scalar_t peek(const parser_t *parser) {
+static unicode_scalar_t lex_peek(const parser_t *parser) {
     return parser->copy;
 }
 
-static unicode_scalar_t peek_next(const parser_t *parser) {
+static unicode_scalar_t lex_peek_next(const parser_t *parser) {
     if(is_at_end(parser)) return '\0';
     uint8_t current_size = unicode_utf8_size(parser->copy);
     uint8_t size = 0;
@@ -144,7 +144,7 @@ static unicode_scalar_t peek_next(const parser_t *parser) {
 
 static void skip_whitespace(parser_t *parser) {
     for(;;) {
-        unicode_scalar_t c = peek(parser);
+        unicode_scalar_t c = lex_peek(parser);
         switch(c) {
         case ' ':
         case '\t':
@@ -158,8 +158,8 @@ static void skip_whitespace(parser_t *parser) {
             break;
             
         case '/':
-            if(peek_next(parser) == '/') {
-                while(peek(parser) != '\n' && !is_at_end(parser)) {
+            if(lex_peek_next(parser) == '/') {
+                while(lex_peek(parser) != '\n' && !is_at_end(parser)) {
                     lex_advance(parser);
                 }
             } else {
@@ -173,9 +173,9 @@ static void skip_whitespace(parser_t *parser) {
     }
 }
 
-static bool match(parser_t *parser, unicode_scalar_t expected) {
+static bool lex_match(parser_t *parser, unicode_scalar_t expected) {
     if(is_at_end(parser)) return false;
-    if(peek(parser) != expected) return false;
+    if(lex_peek(parser) != expected) return false;
     lex_advance(parser);
     return true;
 }
@@ -190,8 +190,8 @@ static token_t string(parser_t *parser) {
     str_buf_init(&str);
     
     bool in_esc_seq = false;
-    while((peek(parser) != '"' || in_esc_seq) && !is_at_end(parser)) {
-        unicode_scalar_t c = peek(parser);
+    while((lex_peek(parser) != '"' || in_esc_seq) && !is_at_end(parser)) {
+        unicode_scalar_t c = lex_peek(parser);
         if(c == '\n') parser->line++;
         
         if(in_esc_seq) {
@@ -240,13 +240,13 @@ static token_t string(parser_t *parser) {
 }
 
 static token_t number(parser_t *parser) {
-    while(is_digit(peek(parser))) {
+    while(is_digit(lex_peek(parser))) {
         lex_advance(parser);
     }
     
-    if(peek(parser) == '.' && is_digit(peek_next(parser))) {
+    if(lex_peek(parser) == '.' && is_digit(lex_peek_next(parser))) {
         lex_advance(parser);
-        while(is_digit(peek(parser))) {
+        while(is_digit(lex_peek(parser))) {
             lex_advance(parser);
         }
     }
@@ -304,7 +304,7 @@ static token_kind_t identifier_kind(const parser_t *parser) {
 }
 
 static token_t identifier(parser_t *parser) {
-    while(unicode_is_identifier(peek(parser))) {
+    while(unicode_is_identifier(lex_peek(parser))) {
         lex_advance(parser);
     }
     return make_token(parser, identifier_kind(parser));
@@ -340,17 +340,17 @@ token_t scan_token(parser_t *parser) {
         case '?': return make_token(parser, TOK_QUESTION);
         case '"': return string(parser);
         
-        case '=': return make_token(parser, match(parser, '=') ? TOK_EQEQ : TOK_EQUALS);
-        case '!': return make_token(parser, match(parser, '=') ? TOK_BANGEQ : TOK_BANG);
-        case '>': return make_token(parser, match(parser, '=') ? TOK_GTEQ : TOK_GT);
-        case '<': return make_token(parser, match(parser, '=') ? TOK_LTEQ : TOK_LT);
+        case '=': return make_token(parser, lex_match(parser, '=') ? TOK_EQEQ : TOK_EQUALS);
+        case '!': return make_token(parser, lex_match(parser, '=') ? TOK_BANGEQ : TOK_BANG);
+        case '>': return make_token(parser, lex_match(parser, '=') ? TOK_GTEQ : TOK_GT);
+        case '<': return make_token(parser, lex_match(parser, '=') ? TOK_LTEQ : TOK_LT);
         
-        case '+': return make_token(parser, match(parser, '=') ? TOK_PLUSEQ : TOK_PLUS);
-        case '*': return make_token(parser, match(parser, '=') ? TOK_STAREQ : TOK_STAR);
-        case '/': return make_token(parser, match(parser, '=') ? TOK_SLASHEQ : TOK_SLASH);
+        case '+': return make_token(parser, lex_match(parser, '=') ? TOK_PLUSEQ : TOK_PLUS);
+        case '*': return make_token(parser, lex_match(parser, '=') ? TOK_STAREQ : TOK_STAR);
+        case '/': return make_token(parser, lex_match(parser, '=') ? TOK_SLASHEQ : TOK_SLASH);
         case '-':
-            if(match(parser, '=')) return make_token(parser, TOK_MINUSEQ);
-            else if(match(parser, '>')) return make_token(parser, TOK_ARROW);
+            if(lex_match(parser, '=')) return make_token(parser, TOK_MINUSEQ);
+            else if(lex_match(parser, '>')) return make_token(parser, TOK_ARROW);
             return make_token(parser, TOK_MINUS);
     }
     
@@ -401,6 +401,16 @@ void error_at(parser_t *parser, const token_t *token, const char *fmt, ...) {
     va_start(args, fmt);
     error_at_varg(parser, token, fmt, args);
     va_end(args);
+}
+
+bool check(parser_t *parser, token_kind_t kind) {
+    return current(parser)->kind == kind;
+}
+
+bool match(parser_t *parser, token_kind_t kind) {
+    if(!check(parser, kind)) return false;
+    advance(parser);
+    return true;
 }
 
 void advance(parser_t *parser) {

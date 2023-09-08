@@ -133,5 +133,20 @@ void error_at_varg(parser_t *parser, const token_t *token, const char *fmt, va_l
 token_t *previous(parser_t *parser);
 token_t *current(parser_t *parser);
 
+bool check(parser_t *parser, token_kind_t kind);
+bool match(parser_t *parser, token_kind_t kind);
+
+/*
+bool check(parser_t *parser, token_kind_t kind) {
+    return current(parser)->kind == kind;
+}
+
+bool match(parser_t *parser, token_kind_t kind) {
+    if(!check(parser, kind)) return false;
+    advance(parser);
+    return true;
+}
+*/
+
 void advance(parser_t *parser);
 void consume(parser_t *parser, token_kind_t kind, const char *msg);

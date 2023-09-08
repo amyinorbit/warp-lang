@@ -145,6 +145,11 @@ static void grouping(compiler_t *comp) {
     consume(comp->parser, TOK_RPAREN, "missing ')' after expression");
 }
 
+static void print(compiler_t *comp) {
+    expression(comp);
+    emit_byte(comp, OP_PRINT);
+}
+
 const parse_rule_t rules[] = {
     [TOK_LPAREN] =      {grouping,  NULL,       PREC_NONE},
     [TOK_RPAREN] =      {NULL,      NULL,       PREC_NONE},
@@ -205,7 +210,7 @@ const parse_rule_t rules[] = {
     [TOK_IF] =          {NULL,      NULL,       PREC_NONE},
     [TOK_ELSE] =        {NULL,      NULL,       PREC_NONE},
     [TOK_INIT] =        {NULL,      NULL,       PREC_NONE},
-    [TOK_PRINT] =       {NULL,      NULL,       PREC_NONE},
+    [TOK_PRINT] =       {print,     NULL,       PREC_UNARY},
     [TOK_EOF] =         {NULL,      NULL,       PREC_NONE},
     [TOK_INVALID] =     {NULL,      NULL,       PREC_NONE},
 };
@@ -230,6 +235,19 @@ static const parse_rule_t *get_rule(token_kind_t kind) {
     return &rules[kind];
 }
 
+static void statement(compiler_t *comp) {
+    expression(comp);
+}
+
+static void declaration(compiler_t *comp) {
+    statement(comp);
+}
+
+static void program(compiler_t *comp) {
+    while(!match(comp->parser, TOK_EOF)) {
+        declaration(comp);
+    }
+}
 
 bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length) {
     compiler_t comp;
@@ -241,7 +259,7 @@ bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length) {
     comp.chunk = chunk;
     
     advance(comp.parser);
-    expression(&comp);
+    program(&comp);
     end_compiler(&comp);
     
     consume(comp.parser, TOK_EOF, "expected end of expression");
