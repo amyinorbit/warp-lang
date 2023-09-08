@@ -94,6 +94,8 @@ static token_t make_token(parser_t *parser, token_kind_t kind) {
     token.start = parser->start;
     token.length = (int)(parser->current - parser->start);
     token.line = parser->line;
+    token.start_of_line = parser->start_of_line;
+    parser->start_of_line = false;
     return token;
 }
 
@@ -103,6 +105,8 @@ static token_t error_token(parser_t *parser) {
     token.start = parser->start;
     token.length = 1;
     token.line = parser->line;
+    token.start_of_line = parser->start_of_line;
+    parser->start_of_line = false;
     return token;
 }
 
@@ -155,6 +159,7 @@ static void skip_whitespace(parser_t *parser) {
         case '\n':
             lex_advance(parser);
             parser->line ++;
+            parser->start_of_line = true;
             break;
             
         case '/':
@@ -370,6 +375,7 @@ void parser_init_text(parser_t *parser, warp_vm_t *vm, const char *text, size_t 
     parser->start = text;
     parser->current = text;
     parser->line = 1;
+    parser->start_of_line = true;
 
     parser->panic = false;
     parser->had_error = false;
@@ -403,6 +409,14 @@ void error_at(parser_t *parser, const token_t *token, const char *fmt, ...) {
     va_end(args);
 }
 
+
+
+bool check_terminator(parser_t *parser) {
+    return current(parser)->start_of_line
+        || check(parser, TOK_EOF)
+        || check(parser, TOK_RBRACE);
+}
+
 bool check(parser_t *parser, token_kind_t kind) {
     return current(parser)->kind == kind;
 }
@@ -419,6 +433,11 @@ void advance(parser_t *parser) {
         *current(parser) = scan_token(parser);
         if(current(parser)->kind != TOK_INVALID) break;
     }
+}
+
+void consume_terminator(parser_t *parser, const char *msg) {
+    if(match(parser, TOK_SEMICOLON) || check_terminator(parser)) return;
+    error_at(parser, previous(parser), msg);
 }
 
 void consume(parser_t *parser, token_kind_t kind, const char *msg) {

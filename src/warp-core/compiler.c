@@ -235,18 +235,18 @@ static const parse_rule_t *get_rule(token_kind_t kind) {
     return &rules[kind];
 }
 
-static void statement(compiler_t *comp) {
+static void expr_stmt(compiler_t *comp) {
     expression(comp);
+    consume_terminator(comp->parser, "expected a line return or a semicolon");
+    emit_byte(comp, OP_POP);
+}
+
+static void statement(compiler_t *comp) {
+    expr_stmt(comp);
 }
 
 static void declaration(compiler_t *comp) {
     statement(comp);
-}
-
-static void program(compiler_t *comp) {
-    while(!match(comp->parser, TOK_EOF)) {
-        declaration(comp);
-    }
 }
 
 bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length) {
@@ -259,7 +259,9 @@ bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length) {
     comp.chunk = chunk;
     
     advance(comp.parser);
-    program(&comp);
+    while(!match(comp.parser, TOK_EOF)) {
+        declaration(&comp);
+    }
     end_compiler(&comp);
     
     consume(comp.parser, TOK_EOF, "expected end of expression");

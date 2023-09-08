@@ -101,6 +101,7 @@ typedef struct token_s {
     token_kind_t        kind;
     int                 length;
     int                 line;
+    bool                start_of_line;
     const char          *start;
     warp_value_t        value;
 } token_t;
@@ -114,6 +115,7 @@ typedef struct parser_s {
     const char          *current;
     int                 line;
     unicode_scalar_t    copy;
+    bool                start_of_line;
     
     // Parser/RD info
     token_t             current_token;
@@ -134,19 +136,9 @@ token_t *previous(parser_t *parser);
 token_t *current(parser_t *parser);
 
 bool check(parser_t *parser, token_kind_t kind);
+bool check_terminator(parser_t *parser);
 bool match(parser_t *parser, token_kind_t kind);
 
-/*
-bool check(parser_t *parser, token_kind_t kind) {
-    return current(parser)->kind == kind;
-}
-
-bool match(parser_t *parser, token_kind_t kind) {
-    if(!check(parser, kind)) return false;
-    advance(parser);
-    return true;
-}
-*/
-
+void consume_terminator(parser_t *parser, const char *msg);
 void advance(parser_t *parser);
 void consume(parser_t *parser, token_kind_t kind, const char *msg);

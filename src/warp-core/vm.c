@@ -141,6 +141,10 @@ warp_result_t warp_run(warp_vm_t *vm) {
             push(vm, read_constant_long(vm));
             break;
             
+        case OP_POP:
+            pop(vm);
+            break;
+            
         case OP_NIL:
             push(vm, WARP_NIL_VAL);
             break;
@@ -210,11 +214,11 @@ warp_result_t warp_run(warp_vm_t *vm) {
 			break;
             
         case OP_RETURN:
-            term_set_fg(stdout, TERM_GREEN);
-            printf("=> ");
-            term_style_reset(stdout);
-            print_value(pop(vm), stdout);
-            printf("\n");
+            // term_set_fg(stdout, TERM_GREEN);
+            // printf("=> ");
+            // term_style_reset(stdout);
+            // print_value(pop(vm), stdout);
+            // printf("\n");
             return WARP_OK;
         }
     }
