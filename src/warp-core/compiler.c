@@ -404,10 +404,13 @@ static void begin_scope(compiler_t *comp) {
 
 static void end_scope(compiler_t *comp) {
     comp->scope_depth -= 1;
+    int num_slots = 0;
     while(comp->local_count > 0 && comp->locals[comp->local_count-1].depth > comp->scope_depth) {
         comp->local_count -= 1;
-        emit_byte(comp, OP_POP);
+        num_slots += 1;
     }
+    ASSERT(num_slots < UINT8_MAX);
+    emit_bytes(comp, OP_BLOCK, num_slots);
 }
 
 static void block(compiler_t *comp) {

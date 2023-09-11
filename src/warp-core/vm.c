@@ -183,6 +183,17 @@ warp_result_t warp_run(warp_vm_t *vm) {
             pop(vm);
             break;
             
+        // because we are expression-oriented, the last result of a block is its value. So we
+        // can't just POP our way out of all of our locals -- we need to save the top-of-stack
+        // first.
+        case OP_BLOCK: {
+            uint8_t slots = READ_8();
+            warp_value_t val = pop(vm);
+            vm->sp -= slots;
+            push(vm, val);
+            break;
+        }
+            
         case OP_NIL:
             push(vm, WARP_NIL_VAL);
             break;
