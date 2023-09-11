@@ -76,6 +76,7 @@ static inline warp_value_t peek(warp_vm_t *vm, int offset) {
 }
 
 static inline warp_value_t pop(warp_vm_t *vm) {
+    ASSERT(vm->sp > vm->stack);
     return *(--vm->sp);
 }
 
@@ -139,11 +140,9 @@ warp_result_t warp_run(warp_vm_t *vm) {
             push(vm, read_constant(vm));
             break;
             
-        
         case OP_DEF_GLOB: {
             warp_value_t name = read_constant(vm);
             warp_map_set(vm, vm->globals, name, peek(vm, 0));
-            pop(vm);
             break;
         }
         

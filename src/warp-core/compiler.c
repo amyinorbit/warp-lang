@@ -48,6 +48,9 @@ struct compiler_t {
     local_t     locals[UINT8_COUNT];
     int         local_count;
     int         scope_depth;
+    
+    int         num_slots;
+    int         max_slots;
 };
 
 typedef void (*parse_fn_t)(compiler_t *comp, bool can_assign);
@@ -58,17 +61,30 @@ typedef struct {
     precedence_t    precedence;
 } parse_rule_t;
 
+
+#define WARP_OP(code, _, effect) [OP_##code] = effect,
+static int stack_effect[] = {
+#include <warp/instr.def>
+};
+#undef WARP_OP
+
 static chunk_t *current_chunk(compiler_t *comp) {
     return comp->chunk;
 }
 
 static void emit_byte(compiler_t *comp, uint8_t byte) {
+    if(byte != OP_BLOCK) {
+        comp->num_slots += stack_effect[byte];
+        if(comp->num_slots > comp->max_slots) {
+            comp->max_slots = comp->num_slots;
+        }
+    }
     chunk_write(comp->vm, current_chunk(comp), byte, previous(comp->parser)->line);
 }
 
 static void emit_bytes(compiler_t *comp, uint8_t byte1, uint8_t byte2) {
     emit_byte(comp, byte1);
-    emit_byte(comp, byte2);
+    chunk_write(comp->vm, current_chunk(comp), byte2, previous(comp->parser)->line);
 }
 
 // static void emit_bytes_long(compiler_t *comp, uint8_t byte1, uint16_t operand) {
@@ -248,8 +264,16 @@ static void end_scope(compiler_t *comp) {
     emit_bytes(comp, OP_BLOCK, num_slots);
 }
 
+static bool check_end_block(parser_t *parser) {
+    return check(parser, TOK_RBRACE) || check(parser, TOK_EOF);
+}
+
 static void block_body(compiler_t *comp) {
-    while(!check(comp->parser, TOK_RBRACE) && !check(comp->parser, TOK_EOF)) {
+    // If we have an empty block, we must still make sure we return nil from that block;
+    // if(check_end_block(comp->parser)) {
+    //     emit_bytes(comp, OP_NIL);
+    // }
+    while(!check_end_block(comp->parser)) {
         declaration(comp);
     }
     consume(comp->parser, TOK_RBRACE, "missing '}' after block");
@@ -354,14 +378,6 @@ static const parse_rule_t *get_rule(token_kind_t kind) {
     return &rules[kind];
 }
 
-static void expr_stmt(compiler_t *comp) {
-    expression(comp);
-    consume_terminator(comp->parser, "expected a line return or a semicolon");
-    if(!check(comp->parser, TOK_RBRACE) && !check(comp->parser, TOK_EOF)) {
-		emit_byte(comp, OP_POP);
-	}
-}
-
 static void add_local(compiler_t *comp, const token_t *name) {
     if(comp->local_count > UINT8_MAX) {
         error_at(comp->parser, name, "too many local variables in function");
@@ -398,6 +414,13 @@ static void declare_variable(compiler_t *comp) {
 static void define_variable(compiler_t *comp, int idx) {
     if(comp->scope_depth > 0) {
         comp->locals[comp->local_count - 1].depth = comp->scope_depth;
+        /*
+        Because we're expression-oriented, every expression must leave its results
+        on top of the stack. This includes variable declarations, which, because of the
+        way the compiler is written, don't. So we need a GET_LOCAL instruction here so
+        we leave the stack as the rest of the language expects it.
+        */
+        emit_bytes(comp, OP_GET_LOCAL, (uint8_t)(comp->local_count - 1));
         return;
     }
     emit_bytes(comp, OP_DEF_GLOB, idx);
@@ -422,16 +445,17 @@ static void var_decl_stmt(compiler_t *comp) {
     consume_terminator(comp->parser, "expected line return or semicolon");
 }
 
-static void statement(compiler_t *comp) {
-    expr_stmt(comp);
-}
-
 static void declaration(compiler_t *comp) {
     if(match(comp->parser, TOK_VAR)) {
         var_decl_stmt(comp);
     } else {
-        statement(comp);
+        expression(comp);
     }
+
+    consume_terminator(comp->parser, "expected a line return or a semicolon");
+    if(!check_end_block(comp->parser)) {
+		emit_byte(comp, OP_POP);
+	}
     if(comp->parser->panic) synchronize(comp->parser);
 }
 
@@ -442,6 +466,8 @@ static void compiler_init_root(compiler_t *compiler, warp_vm_t *vm, parser_t *pa
     compiler->chunk = chunk;
     compiler->local_count = 0;
     compiler->scope_depth = 0;
+    compiler->num_slots = 0;
+    compiler->max_slots = 0;
 }
 
 bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length) {
