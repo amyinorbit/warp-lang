@@ -420,6 +420,7 @@ static void end_scope(compiler_t *comp) {
     }
     ASSERT(num_slots < UINT8_MAX);
     emit_bytes(comp, OP_BLOCK, num_slots);
+    comp->num_slots -= (num_slots);
 }
 
 static bool check_end_block(parser_t *parser) {
