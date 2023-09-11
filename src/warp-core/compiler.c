@@ -249,47 +249,10 @@ static void print(compiler_t *comp, bool can_assign) {
     emit_byte(comp, OP_PRINT);
 }
 
-static void begin_scope(compiler_t *comp) {
-    comp->scope_depth += 1;
-}
-
-static void end_scope(compiler_t *comp) {
-    comp->scope_depth -= 1;
-    int num_slots = 0;
-    while(comp->local_count > 0 && comp->locals[comp->local_count-1].depth > comp->scope_depth) {
-        comp->local_count -= 1;
-        num_slots += 1;
-    }
-    ASSERT(num_slots < UINT8_MAX);
-    emit_bytes(comp, OP_BLOCK, num_slots);
-}
-
-static bool check_end_block(parser_t *parser) {
-    return check(parser, TOK_RBRACE) || check(parser, TOK_EOF);
-}
-
-static void block_body(compiler_t *comp) {
-    // If we have an empty block, we must still make sure we return nil from that block;
-    // if(check_end_block(comp->parser)) {
-    //     emit_bytes(comp, OP_NIL);
-    // }
-    while(!check_end_block(comp->parser)) {
-        declaration(comp);
-    }
-    consume(comp->parser, TOK_RBRACE, "missing '}' after block");
-}
-
-static void block(compiler_t *comp, bool can_assign) {
-    UNUSED(can_assign);
-    begin_scope(comp);
-    block_body(comp);
-    end_scope(comp);
-}
-
 const parse_rule_t rules[] = {
     [TOK_LPAREN] =      {grouping,  NULL,       PREC_NONE},
     [TOK_RPAREN] =      {NULL,      NULL,       PREC_NONE},
-    [TOK_LBRACE] =      {block,     NULL,       PREC_NONE},
+    [TOK_LBRACE] =      {NULL,      NULL,       PREC_NONE},
     [TOK_RBRACE] =      {NULL,      NULL,       PREC_NONE},
     [TOK_LBRACKET] =    {NULL,      NULL,       PREC_NONE},
     [TOK_RBRACKET] =    {NULL,      NULL,       PREC_NONE},
@@ -420,7 +383,7 @@ static void define_variable(compiler_t *comp, int idx) {
         way the compiler is written, don't. So we need a GET_LOCAL instruction here so
         we leave the stack as the rest of the language expects it.
         */
-        emit_bytes(comp, OP_GET_LOCAL, (uint8_t)(comp->local_count - 1));
+        emit_byte(comp, OP_DUP);
         return;
     }
     emit_bytes(comp, OP_DEF_GLOB, idx);
@@ -438,21 +401,55 @@ static int parse_variable(compiler_t *comp, const char *msg) {
 static void var_decl_stmt(compiler_t *comp) {
     int global = parse_variable(comp, "expected a variable name");
     
-    consume(comp->parser, TOK_EQUALS, "all variables must be initialized");
+    consume(comp->parser, TOK_EQUALS, "missing variable initializer");
     expression(comp);
     
     define_variable(comp, global);
-    consume_terminator(comp->parser, "expected line return or semicolon");
+}
+
+static void begin_scope(compiler_t *comp) {
+    comp->scope_depth += 1;
+}
+
+static void end_scope(compiler_t *comp) {
+    comp->scope_depth -= 1;
+    int num_slots = 0;
+    while(comp->local_count > 0 && comp->locals[comp->local_count-1].depth > comp->scope_depth) {
+        comp->local_count -= 1;
+        num_slots += 1;
+    }
+    ASSERT(num_slots < UINT8_MAX);
+    emit_bytes(comp, OP_BLOCK, num_slots);
+}
+
+static bool check_end_block(parser_t *parser) {
+    return check(parser, TOK_RBRACE) || check(parser, TOK_EOF);
+}
+
+static void block(compiler_t *comp) {
+    // If we have an empty block, we must still make sure we return nil from that block;
+    if(check_end_block(comp->parser)) {
+        emit_byte(comp, OP_NIL);
+    }
+    while(!check_end_block(comp->parser)) {
+        declaration(comp);
+    }
+    consume(comp->parser, TOK_RBRACE, "missing '}' after block");
 }
 
 static void declaration(compiler_t *comp) {
     if(match(comp->parser, TOK_VAR)) {
         var_decl_stmt(comp);
+        consume_terminator(comp->parser, "expected a line return or a semicolon");
+    } else if(match(comp->parser, TOK_LBRACE)) {
+        begin_scope(comp);
+        block(comp);
+        end_scope(comp);
     } else {
         expression(comp);
+        consume_terminator(comp->parser, "expected a line return or a semicolon");
     }
-
-    consume_terminator(comp->parser, "expected a line return or a semicolon");
+    
     if(!check_end_block(comp->parser)) {
 		emit_byte(comp, OP_POP);
 	}

@@ -222,7 +222,7 @@ static token_t string(parser_t *parser) {
                 emit_diag_loc(
                     &parser->source,
                     WARP_DIAG_WARN,
-                    parser->line, parser->current-1,
+                    parser->line, parser->current-1, 1,
                     "invalid string escape sequence"
                 );
                 break;
@@ -473,7 +473,7 @@ void advance(parser_t *parser) {
 
 void consume_terminator(parser_t *parser, const char *msg) {
     if(match(parser, TOK_SEMICOLON) || check_terminator(parser)) return;
-    error_at(parser, previous(parser), msg);
+    error_at(parser, current(parser), msg);
 }
 
 void consume(parser_t *parser, token_kind_t kind, const char *msg) {
@@ -482,7 +482,7 @@ void consume(parser_t *parser, token_kind_t kind, const char *msg) {
         return;
     }
     if(current(parser)->kind != TOK_INVALID) {
-        error_at(parser, previous(parser), msg);
+        error_at(parser, current(parser), msg);
     } else {
         error_silent(parser);
     }

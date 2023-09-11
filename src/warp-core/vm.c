@@ -177,6 +177,10 @@ warp_result_t warp_run(warp_vm_t *vm) {
             vm->stack[slot] = peek(vm, 0);
             break;
         }
+        
+        case OP_DUP:
+            push(vm, peek(vm, 0));
+            break;
             
         case OP_POP:
             pop(vm);

@@ -110,26 +110,26 @@ void emit_diag_varg(
     const char *fmt,
     va_list args
 ) {
-    emit_diag_loc_varg(src, level, token->line, token->start, fmt, args);
+    emit_diag_loc_varg(src, level, token->line, token->start, token->length, fmt, args);
 }
 
 void emit_diag_loc(
     const src_t *src,
     warp_diag_level_t level,
-    int line, const char *loc,
+    int line, const char *loc, int length,
     const char *fmt,
     ...
 ) {
     va_list args;
     va_start(args, fmt);
-    emit_diag_loc_varg(src, level, line, loc, fmt, args);
+    emit_diag_loc_varg(src, level, line, loc, length, fmt, args);
     va_end(args);
 }
 
 void emit_diag_loc_varg(
     const src_t *src,
     warp_diag_level_t level,
-    int line, const char *loc,
+    int line, const char *loc, int length,
     const char *fmt,
     va_list args
 ) {
@@ -146,7 +146,7 @@ void emit_diag_loc_varg(
     diag.line_start = get_line_start(src, loc);
     diag.line_end = get_line_end(src, loc);
     
-    diag.span.length = 1;
+    diag.span.length = length;
     diag.span.line = line;
     diag.span.column = 1 + (int)(loc - diag.line_start);
     diag.fname = src->fname;
@@ -177,7 +177,7 @@ void emit_diag_line_varg(
     diag.line_start = get_line_start_n(src, line);
     diag.line_end = get_line_end(src, diag.line_start);
     
-    diag.span.length = diag.line_end - diag.line_start;
+    diag.span.length = 1;
     diag.span.line = line;
     diag.span.column = 1;
     diag.fname = src->fname;

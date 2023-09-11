@@ -22,7 +22,7 @@ void emit_diag(
 void emit_diag_loc(
     const src_t *src,
     warp_diag_level_t level,
-    int line, const char *loc,
+    int line, const char *loc, int length,
     const char *fmt,
     ...
 );
@@ -38,7 +38,7 @@ void emit_diag_varg(
 void emit_diag_loc_varg(
     const src_t *src,
     warp_diag_level_t level,
-    int line, const char *loc,
+    int line, const char *loc, int length,
     const char *fmt,
     va_list args
 );
