@@ -82,7 +82,7 @@ int disassemble_instr(chunk_t *chunk, int offset, FILE *out) {
         break;
     case 1:
         fprintf(out, "%-16s %02hhx", instr_data[op].name, chunk->code[offset+1]);
-        if(op == OP_CONST) {
+        if(op == OP_CONST || op == OP_DEF_GLOB || op == OP_GET_GLOB || op == OP_SET_GLOB) {
             uint8_t value_idx = chunk->code[offset+1];
             fprintf(out, "  (");
             print_value(chunk->constants.data[value_idx], out);

@@ -13,7 +13,7 @@
 #include "types/obj_impl.h"
 #include "diag_impl.h"
 #include "debug.h"
-#include <stdarg.h>
+#include <string.h>
 
 typedef enum {
     PREC_NONE,
@@ -107,6 +107,7 @@ static void end_compiler(compiler_t *comp) {
 }
 
 static void expression(compiler_t *comp);
+static void declaration(compiler_t *comp);
 static const parse_rule_t *get_rule(token_kind_t kind);
 static void parse_precedence(compiler_t *comp, precedence_t prec);
 
@@ -131,14 +132,49 @@ static void literal(compiler_t *comp, bool can_assign) {
     }
 }
 
+
+static bool ident_equals(const token_t *a, const token_t *b) {
+    if(a->length != b->length) return false;
+    return memcmp(a->start, b->start, a->length) == 0;
+}
+
+static int resolve_local(compiler_t *comp, const token_t *name) {
+    for(int i = comp->local_count - 1; i >= 0; --i) {
+        local_t *local = &comp->locals[i];
+        if(ident_equals(name, &local->name)) {
+            if(local->depth == -1) {
+                error_at(
+                    comp->parser,
+                    name,
+                    "variable '%.*s' used in its own initializer",
+                    name->length,
+                    name->start
+                );
+            }
+            return i;
+        } 
+    }
+    return -1;
+}
+
 static void named_variable(compiler_t *comp, const token_t *name, bool can_assign) {
-    int idx = add_ident_const(comp, name);
+    
+    uint8_t get_op, set_op;
+    int arg = resolve_local(comp, name);
+    if(arg != -1) {
+        get_op = OP_GET_LOCAL;
+        set_op = OP_SET_LOCAL;
+    } else {
+        arg = add_ident_const(comp, name);
+        get_op = OP_GET_GLOB;
+        set_op = OP_SET_GLOB;
+    }
     
     if(can_assign && match(comp->parser, TOK_EQUALS)) {
         expression(comp);
-        emit_bytes(comp, OP_SET_GLOB, idx);
+        emit_bytes(comp, set_op, (uint8_t)arg);
     } else {
-        emit_bytes(comp, OP_GET_GLOB, idx);
+        emit_bytes(comp, get_op, (uint8_t)arg);
     }
 }
 
@@ -298,31 +334,96 @@ static void expr_stmt(compiler_t *comp) {
 	}
 }
 
+static void add_local(compiler_t *comp, const token_t *name) {
+    if(comp->local_count > UINT8_MAX) {
+        error_at(comp->parser, name, "too many local variables in function");
+        return;
+    }
+    local_t *local = &comp->locals[comp->local_count++];
+    local->name = *name;
+    local->depth = -1; //comp->scope_depth;
+}
+
+
+static void declare_variable(compiler_t *comp) {
+    if(comp->scope_depth == 0) return;
+    
+    const token_t *name = previous(comp->parser);
+    
+    for(int i = comp->local_count - 1; i >= 0; --i) {
+        local_t *local = &comp->locals[i];
+        if(local->depth != -1 && local->depth != comp->scope_depth)
+            break;
+        if(ident_equals(name, &local->name)) {
+            error_at(
+                comp->parser,
+                name,
+                "local variable '%.*s' already defined",
+                name->length,
+                name->start
+            );
+        }
+    }
+    add_local(comp, name);
+}
+
+static void define_variable(compiler_t *comp, int idx) {
+    if(comp->scope_depth > 0) {
+        comp->locals[comp->local_count - 1].depth = comp->scope_depth;
+        return;
+    }
+    emit_bytes(comp, OP_DEF_GLOB, idx);
+}
+
 static int parse_variable(compiler_t *comp, const char *msg) {
     consume(comp->parser, TOK_IDENTIFIER, msg);
+    
+    declare_variable(comp);
+    if(comp->scope_depth > 0) return 0;
+    
     return add_ident_const(comp, previous(comp->parser));
 }
 
 static void var_decl_stmt(compiler_t *comp) {
     int global = parse_variable(comp, "expected a variable name");
     
-    if(match(comp->parser, TOK_EQUALS)) {
-        expression(comp);
-    } else {
-        emit_byte(comp, OP_NIL);
-    }
-    emit_bytes(comp, OP_DEF_GLOB, global);
+    consume(comp->parser, TOK_EQUALS, "all variables must be initialized");
+    expression(comp);
+    
+    define_variable(comp, global);
     consume_terminator(comp->parser, "expected line return or semicolon");
 }
-
 
 static void statement(compiler_t *comp) {
     expr_stmt(comp);
 }
 
+static void begin_scope(compiler_t *comp) {
+    comp->scope_depth += 1;
+}
+
+static void end_scope(compiler_t *comp) {
+    comp->scope_depth -= 1;
+    while(comp->local_count > 0 && comp->locals[comp->local_count-1].depth > comp->scope_depth) {
+        comp->local_count -= 1;
+        emit_byte(comp, OP_POP);
+    }
+}
+
+static void block(compiler_t *comp) {
+    while(!check(comp->parser, TOK_RBRACE) && !check(comp->parser, TOK_EOF)) {
+        declaration(comp);
+    }
+    consume(comp->parser, TOK_RBRACE, "missing '}' after block");
+}
+
 static void declaration(compiler_t *comp) {
     if(match(comp->parser, TOK_VAR)) {
         var_decl_stmt(comp);
+    } else if(match(comp->parser, TOK_LBRACE)) {
+        begin_scope(comp);
+        block(comp);
+        end_scope(comp);
     } else {
         statement(comp);
     }

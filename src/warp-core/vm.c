@@ -147,6 +147,17 @@ warp_result_t warp_run(warp_vm_t *vm) {
             break;
         }
         
+        case OP_GET_GLOB: {
+            warp_value_t name = read_constant(vm);
+            warp_value_t val = WARP_NIL_VAL;
+            if(!warp_map_get(vm->globals, name, &val)) {
+                runtime_error(vm, "undefined global variable '%s'", WARP_AS_CSTR(name));
+                return WARP_RUNTIME_ERROR;
+            }
+            push(vm, val);
+            break;
+        }
+        
         case OP_SET_GLOB: {
             warp_value_t name = read_constant(vm);
             if(!warp_map_set(vm, vm->globals, name, peek(vm, 0))) {
@@ -156,14 +167,15 @@ warp_result_t warp_run(warp_vm_t *vm) {
             break;
         }
         
-        case OP_GET_GLOB: {
-            warp_value_t name = read_constant(vm);
-            warp_value_t val = WARP_NIL_VAL;
-            if(!warp_map_get(vm->globals, name, &val)) {
-                runtime_error(vm, "undefined global variable '%s'", WARP_AS_CSTR(name));
-                return WARP_RUNTIME_ERROR;
-            }
-            push(vm, val);
+        case OP_GET_LOCAL: {
+            uint8_t slot = READ_8();
+            push(vm, vm->stack[slot]);
+            break;
+        }
+        
+        case OP_SET_LOCAL: {
+            uint8_t slot = READ_8();
+            vm->stack[slot] = peek(vm, 0);
             break;
         }
             
