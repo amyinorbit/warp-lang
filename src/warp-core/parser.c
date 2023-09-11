@@ -57,7 +57,6 @@ static const char * token_names[] = {
     [TOK_COMMA] = "comma",
     [TOK_DOT] = "dot",
     [TOK_ARROW] = "arrow",
-    [TOK_THEN] = "then",
     
     [TOK_NUMBER] = "number_literal",
     [TOK_STRING] = "string_literal",
@@ -76,7 +75,9 @@ static const char * token_names[] = {
     [TOK_BREAK] = "break",
     [TOK_CONTINUE] = "continue",
     [TOK_IF] = "if",
+    [TOK_THEN] = "then",
     [TOK_ELSE] = "else",
+    [TOK_END] = "end",
     [TOK_INIT] = "init",
     [TOK_PRINT] = "print",
     

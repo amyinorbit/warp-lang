@@ -29,11 +29,26 @@ typedef enum {
     PREC_PRIMARY
 } precedence_t;
 
-typedef struct {
+#define UINT8_COUNT (UINT8_MAX + 1)
+
+typedef struct local_t local_t;
+typedef struct compiler_t compiler_t;
+
+struct local_t {
+    token_t     name;
+    int         depth;
+};
+
+struct compiler_t {
+    // compiler_t  *enclosing;
     warp_vm_t   *vm;
     chunk_t     *chunk;
     parser_t    *parser;
-} compiler_t;
+    
+    local_t     locals[UINT8_COUNT];
+    int         local_count;
+    int         scope_depth;
+};
 
 typedef void (*parse_fn_t)(compiler_t *comp, bool can_assign);
 
@@ -224,7 +239,6 @@ const parse_rule_t rules[] = {
     [TOK_COMMA] =       {NULL,      NULL,       PREC_NONE},
     [TOK_DOT] =         {NULL,      NULL,       PREC_NONE},
     [TOK_ARROW] =       {NULL,      NULL,       PREC_NONE},
-    [TOK_THEN] =        {NULL,      NULL,       PREC_NONE},
     [TOK_NUMBER] =      {number,    NULL,       PREC_NONE},
     [TOK_STRING] =      {string,    NULL,       PREC_NONE},
     [TOK_IDENTIFIER] =  {variable,  NULL,       PREC_NONE},
@@ -241,7 +255,9 @@ const parse_rule_t rules[] = {
     [TOK_BREAK] =       {NULL,      NULL,       PREC_NONE},
     [TOK_CONTINUE] =    {NULL,      NULL,       PREC_NONE},
     [TOK_IF] =          {NULL,      NULL,       PREC_NONE},
+    [TOK_THEN] =        {NULL,      NULL,       PREC_NONE},
     [TOK_ELSE] =        {NULL,      NULL,       PREC_NONE},
+    [TOK_END] =         {NULL,      NULL,       PREC_NONE},
     [TOK_INIT] =        {NULL,      NULL,       PREC_NONE},
     [TOK_PRINT] =       {print,     NULL,       PREC_UNARY},
     [TOK_EOF] =         {NULL,      NULL,       PREC_NONE},
@@ -311,14 +327,21 @@ static void declaration(compiler_t *comp) {
     if(comp->parser->panic) synchronize(comp->parser);
 }
 
+static void compiler_init_root(compiler_t *compiler, warp_vm_t *vm, parser_t *parser, chunk_t *chunk) {
+    compiler->vm = vm;
+    compiler->parser = parser;
+    
+    compiler->chunk = chunk;
+    compiler->local_count = 0;
+    compiler->scope_depth = 0;
+}
+
 bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length) {
     compiler_t comp;
     
     parser_t parser;
     parser_init_text(&parser, vm, src, length);
-    comp.vm = vm;
-    comp.parser = &parser;
-    comp.chunk = chunk;
+    compiler_init_root(&comp, vm, &parser, chunk);
     
     advance(comp.parser);
     while(!match(comp.parser, TOK_EOF)) {

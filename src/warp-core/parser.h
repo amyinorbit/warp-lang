@@ -65,7 +65,6 @@ typedef enum {
     TOK_COMMA,
     TOK_DOT,
     TOK_ARROW,
-    TOK_THEN,
     
     // Language objects
     TOK_NUMBER,
@@ -86,7 +85,9 @@ typedef enum {
     TOK_BREAK,
     TOK_CONTINUE,
     TOK_IF,
+    TOK_THEN,
     TOK_ELSE,
+    TOK_END,
     TOK_INIT,
     TOK_PRINT, // TODO: remove when FFI/native functions allow print() to be impl.
     
