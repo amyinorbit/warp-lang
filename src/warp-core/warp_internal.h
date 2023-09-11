@@ -19,6 +19,7 @@ struct warp_vm_t {
     
     warp_obj_t      *objects;
     warp_map_t      *strings;
+    warp_map_t      *globals;
     
     warp_value_t    stack[WARP_STACK_MAX];
     warp_value_t    *sp;

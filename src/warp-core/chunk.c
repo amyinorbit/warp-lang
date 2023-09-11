@@ -7,6 +7,7 @@
 // =^•.•^=
 //===--------------------------------------------------------------------------------------------===
 #include "chunk.h"
+#include "value_impl.h"
 #include <warp/instr.h>
 #include "warp_internal.h"
 
@@ -52,8 +53,12 @@ int chunk_add_const(warp_vm_t *vm, chunk_t *chunk, warp_value_t value) {
     ASSERT(vm);
     ASSERT(chunk);
     
+    for(int i = 0; i < chunk->constants.count; ++i) {
+        if(value_equals(value, chunk->constants.data[i])) return i;
+    }
+    
     val_buf_write(vm, &chunk->constants, value);
-    ASSERT(chunk->constants.count < 255);
+    ASSERT(chunk->constants.count < UINT16_MAX+1);
     return chunk->constants.count - 1;
 }
 

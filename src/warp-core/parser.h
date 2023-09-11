@@ -12,6 +12,9 @@
 #include <unic/unic.h>
 #include <stdarg.h>
 
+#define DEBUG_LEX 0
+
+
 typedef enum {
     // Bracket types
     // (){}[]
@@ -134,6 +137,8 @@ void error_at_varg(parser_t *parser, const token_t *token, const char *fmt, va_l
 
 token_t *previous(parser_t *parser);
 token_t *current(parser_t *parser);
+
+void synchronize(parser_t *parser);
 
 bool check(parser_t *parser, token_kind_t kind);
 bool check_terminator(parser_t *parser);

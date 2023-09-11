@@ -88,6 +88,16 @@ const char *token_name(token_kind_t kind) {
     return token_names[kind];
 }
 
+#if DEBUG_LEX == 1
+static void print_token(const token_t *token) {
+    printf("%-15s (%.*s)%s\n",
+        token_name(token->kind),
+        token->length,
+        token->start,
+        token->start_of_line ? " <line start>" : "");
+}
+#endif
+
 static token_t make_token(parser_t *parser, token_kind_t kind) {
     token_t token;
     token.kind = kind;
@@ -409,7 +419,29 @@ void error_at(parser_t *parser, const token_t *token, const char *fmt, ...) {
     va_end(args);
 }
 
-
+void synchronize(parser_t *parser) {
+    if(!parser->panic) return;
+    parser->panic = false;
+    
+    while(current(parser)->kind != TOK_EOF) {
+        if(previous(parser)->kind == TOK_SEMICOLON) return;
+        
+        switch(current(parser)->kind) {
+        case TOK_FUN:
+        case TOK_VAR:
+        case TOK_FOR:
+        case TOK_IF:
+        case TOK_WHILE:
+        case TOK_RETURN:
+            return;
+            
+        default:
+            break;
+        }
+        
+        advance(parser);
+    }
+}
 
 bool check_terminator(parser_t *parser) {
     return current(parser)->start_of_line
@@ -431,6 +463,9 @@ void advance(parser_t *parser) {
     *previous(parser) = *current(parser);
     for(;;) {
         *current(parser) = scan_token(parser);
+#if DEBUG_LEX
+        print_token(current(parser));
+#endif
         if(current(parser)->kind != TOK_INVALID) break;
     }
 }

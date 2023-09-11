@@ -35,12 +35,12 @@ typedef struct {
     parser_t    *parser;
 } compiler_t;
 
-typedef void (*parse_fn_t)(compiler_t *comp);
+typedef void (*parse_fn_t)(compiler_t *comp, bool can_assign);
 
 typedef struct {
-    parse_fn_t prefix;
-    parse_fn_t infix;
-    precedence_t precedence;
+    parse_fn_t      prefix;
+    parse_fn_t      infix;
+    precedence_t    precedence;
 } parse_rule_t;
 
 static chunk_t *current_chunk(compiler_t *comp) {
@@ -56,11 +56,11 @@ static void emit_bytes(compiler_t *comp, uint8_t byte1, uint8_t byte2) {
     emit_byte(comp, byte2);
 }
 
-static void emit_bytes_long(compiler_t *comp, uint8_t byte1, uint16_t operand) {
-    emit_byte(comp, byte1);
-    emit_byte(comp, operand & 0x00ff);
-    emit_byte(comp, operand >> 8);
-}
+// static void emit_bytes_long(compiler_t *comp, uint8_t byte1, uint16_t operand) {
+//     emit_byte(comp, byte1);
+//     emit_byte(comp, operand & 0x00ff);
+//     emit_byte(comp, operand >> 8);
+// }
 
 static void emit_return(compiler_t *comp) {
     emit_byte(comp, OP_RETURN);
@@ -70,11 +70,21 @@ static void emit_const(compiler_t *comp, warp_value_t value) {
     int idx = chunk_add_const(comp->vm, current_chunk(comp), value);
     if(idx < UINT8_MAX) {
         emit_bytes(comp, OP_CONST, (uint8_t)idx);
-    } else if(idx < UINT16_MAX) {
-        emit_bytes_long(comp, OP_LCONST, (uint16_t)idx);
     } else {
         error_at(comp->parser, previous(comp->parser), "too many constants in one bytecode unit");
     }
+}
+
+static inline int add_ident_const(compiler_t *comp, const token_t *name) {
+    int idx = chunk_add_const(
+        comp->vm,
+        current_chunk(comp),
+        WARP_OBJ_VAL(warp_copy_c_str(comp->vm, name->start, name->length))
+    );
+    if(idx >= UINT8_MAX) {
+        error_at(comp->parser, previous(comp->parser), "too many constants in one bytecode unit");
+    }
+    return idx;
 }
 
 static void end_compiler(compiler_t *comp) {
@@ -85,15 +95,18 @@ static void expression(compiler_t *comp);
 static const parse_rule_t *get_rule(token_kind_t kind);
 static void parse_precedence(compiler_t *comp, precedence_t prec);
 
-static void number(compiler_t *comp) {
+static void number(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
     emit_const(comp, previous(comp->parser)->value);
 }
 
-static void string(compiler_t *comp) {
+static void string(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
     emit_const(comp, previous(comp->parser)->value);
 }
 
-static void literal(compiler_t *comp) {
+static void literal(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
     token_t tok = *previous(comp->parser);
     switch(tok.kind) {
         case TOK_TRUE: emit_byte(comp, OP_TRUE); break;
@@ -103,11 +116,27 @@ static void literal(compiler_t *comp) {
     }
 }
 
+static void named_variable(compiler_t *comp, const token_t *name, bool can_assign) {
+    int idx = add_ident_const(comp, name);
+    
+    if(can_assign && match(comp->parser, TOK_EQUALS)) {
+        expression(comp);
+        emit_bytes(comp, OP_SET_GLOB, idx);
+    } else {
+        emit_bytes(comp, OP_GET_GLOB, idx);
+    }
+}
+
+static void variable(compiler_t *comp, bool can_assign) {
+    named_variable(comp, previous(comp->parser), can_assign);
+}
+
 static void expression(compiler_t *comp) {
     parse_precedence(comp, PREC_ASSIGNMENT);
 }
 
-static void unary(compiler_t *comp) {
+static void unary(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
     token_t op = *previous(comp->parser);
     
     expression(comp);    
@@ -118,7 +147,9 @@ static void unary(compiler_t *comp) {
     }
 }
 
-static void binary(compiler_t *comp) {
+static void binary(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
+    
     token_t op = *previous(comp->parser);
     const parse_rule_t *rule = get_rule(op.kind);
     parse_precedence(comp, rule->precedence + 1);
@@ -140,12 +171,14 @@ static void binary(compiler_t *comp) {
     }
 }
 
-static void grouping(compiler_t *comp) {
+static void grouping(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
     expression(comp);
     consume(comp->parser, TOK_RPAREN, "missing ')' after expression");
 }
 
-static void print(compiler_t *comp) {
+static void print(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
     expression(comp);
     emit_byte(comp, OP_PRINT);
 }
@@ -194,7 +227,7 @@ const parse_rule_t rules[] = {
     [TOK_THEN] =        {NULL,      NULL,       PREC_NONE},
     [TOK_NUMBER] =      {number,    NULL,       PREC_NONE},
     [TOK_STRING] =      {string,    NULL,       PREC_NONE},
-    [TOK_IDENTIFIER] =  {NULL,      NULL,       PREC_NONE},
+    [TOK_IDENTIFIER] =  {variable,  NULL,       PREC_NONE},
     [TOK_SELF] =        {NULL,      NULL,       PREC_NONE},
     [TOK_TRUE] =        {literal,   NULL,       PREC_NONE},
     [TOK_FALSE] =       {literal,   NULL,       PREC_NONE},
@@ -222,12 +255,18 @@ static void parse_precedence(compiler_t *comp, precedence_t prec) {
         error_at(comp->parser, previous(comp->parser), "expected an expression");
         return;
     }
-    prefix(comp);
+    
+    bool can_assign = prec <= PREC_ASSIGNMENT;
+    prefix(comp, can_assign);
+    
+    if(!can_assign && check(comp->parser, TOK_EQUALS)) {
+        error_at(comp->parser, current(comp->parser), "cannot assign to non-variable expression");
+    }
     
     while(prec <= get_rule(current(comp->parser)->kind)->precedence) {
         advance(comp->parser);
         parse_fn_t infix = get_rule(previous(comp->parser)->kind)->infix;
-        infix(comp);
+        infix(comp, can_assign);
     }
 }
 
@@ -241,12 +280,35 @@ static void expr_stmt(compiler_t *comp) {
     emit_byte(comp, OP_POP);
 }
 
+static int parse_variable(compiler_t *comp, const char *msg) {
+    consume(comp->parser, TOK_IDENTIFIER, msg);
+    return add_ident_const(comp, previous(comp->parser));
+}
+
+static void var_decl_stmt(compiler_t *comp) {
+    int global = parse_variable(comp, "expected a variable name");
+    
+    if(match(comp->parser, TOK_EQUALS)) {
+        expression(comp);
+    } else {
+        emit_byte(comp, OP_NIL);
+    }
+    emit_bytes(comp, OP_DEF_GLOB, global);
+    consume_terminator(comp->parser, "expected line return or semicolon");
+}
+
+
 static void statement(compiler_t *comp) {
     expr_stmt(comp);
 }
 
 static void declaration(compiler_t *comp) {
-    statement(comp);
+    if(match(comp->parser, TOK_VAR)) {
+        var_decl_stmt(comp);
+    } else {
+        statement(comp);
+    }
+    if(comp->parser->panic) synchronize(comp->parser);
 }
 
 bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length) {
@@ -267,7 +329,7 @@ bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length) {
     consume(comp.parser, TOK_EOF, "expected end of expression");
     
 #if DEBUG_PRINT_CODE == 1
-    if(!comp.parser.had_error) {
+    if(!parser.had_error) {
         disassemble_chunk(chunk, "compiled code", stdout);
     }
 #endif

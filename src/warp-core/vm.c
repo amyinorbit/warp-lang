@@ -25,6 +25,7 @@ warp_vm_t *warp_vm_new(const warp_cfg_t *cfg) {
     vm->allocator = alloc;
     vm->objects = NULL;
     vm->strings = warp_map_new(vm);
+    vm->globals = warp_map_new(vm);
     
     return vm;
 }
@@ -33,7 +34,9 @@ void warp_vm_destroy(warp_vm_t *vm) {
     ASSERT(vm);
 	
     warp_map_free(vm, vm->strings);
+    warp_map_free(vm, vm->globals);
     vm->strings = NULL;
+    vm->globals = NULL;
     for(warp_obj_t *obj = vm->objects; obj != NULL;) {
         warp_obj_t *next = obj->next;
         obj_destroy(vm, obj);
@@ -47,17 +50,17 @@ static inline uint8_t read_8(warp_vm_t *vm) {
     return *vm->ip++;
 }
 
-static inline uint16_t read_16(warp_vm_t *vm) {
-    return (uint16_t)(*vm->ip++) | ((uint16_t)(*vm->ip++) << 8);
-}
+// static inline uint16_t read_16(warp_vm_t *vm) {
+//     return (uint16_t)(*vm->ip++) | ((uint16_t)(*vm->ip++) << 8);
+// }
 
 static inline warp_value_t read_constant(warp_vm_t *vm) {
     return vm->chunk->constants.data[read_8(vm)];
 }
 
-static inline warp_value_t read_constant_long(warp_vm_t *vm) {
-    return vm->chunk->constants.data[read_16(vm)];
-}
+// static inline warp_value_t read_constant_long(warp_vm_t *vm) {
+//     return vm->chunk->constants.data[read_16(vm)];
+// }
 
 static void reset_stack(warp_vm_t *vm) {
     vm->sp = vm->stack;
@@ -131,15 +134,38 @@ warp_result_t warp_run(warp_vm_t *vm) {
             printf("]\n");
         }
 #endif
-        switch(instr = read_8(vm)) {
-            
+        switch(instr = read_8(vm)) {            
         case OP_CONST:
             push(vm, read_constant(vm));
             break;
             
-        case OP_LCONST:
-            push(vm, read_constant_long(vm));
+        
+        case OP_DEF_GLOB: {
+            warp_value_t name = read_constant(vm);
+            warp_map_set(vm, vm->globals, name, peek(vm, 0));
+            pop(vm);
             break;
+        }
+        
+        case OP_SET_GLOB: {
+            warp_value_t name = read_constant(vm);
+            if(!warp_map_set(vm, vm->globals, name, peek(vm, 0))) {
+                warp_map_delete(vm->globals, name, NULL);
+                runtime_error(vm, "undefined global variable '%s", WARP_AS_CSTR(name));
+            }
+            break;
+        }
+        
+        case OP_GET_GLOB: {
+            warp_value_t name = read_constant(vm);
+            warp_value_t val = WARP_NIL_VAL;
+            if(!warp_map_get(vm->globals, name, &val)) {
+                runtime_error(vm, "undefined global variable '%s'", WARP_AS_CSTR(name));
+                return WARP_RUNTIME_ERROR;
+            }
+            push(vm, val);
+            break;
+        }
             
         case OP_POP:
             pop(vm);

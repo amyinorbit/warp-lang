@@ -113,7 +113,7 @@ static void map_adjust_cap(warp_vm_t *vm, warp_map_t *map, warp_uint_t capacity)
     map->entries = entries;
 }
 
-void warp_map_set(warp_vm_t *vm, warp_map_t *map, warp_value_t key, warp_value_t val) {
+bool warp_map_set(warp_vm_t *vm, warp_map_t *map, warp_value_t key, warp_value_t val) {
     CHECK(is_valid_key_type(key));
     
     if(map->load + 1 > map->capacity * MAP_MAX_LOAD) {
@@ -124,12 +124,15 @@ void warp_map_set(warp_vm_t *vm, warp_map_t *map, warp_value_t key, warp_value_t
     entry_t *entry = find_entry(map->entries, map->capacity, key);
     CHECK(entry != NULL);
     
+    bool existing = true;
     if(WARP_IS_NIL(entry->key)) {
         map->count += 1;
         map->load += 1;
+        existing = false;
     }
     entry->key = key;
     entry->value = val;
+    return existing;
 }
 
 bool warp_map_delete(warp_map_t *map, warp_value_t key, warp_value_t *out) {
@@ -168,6 +171,8 @@ warp_str_t *warp_map_find_str(warp_map_t *map, const char *str, warp_uint_t leng
 
 bool warp_map_get(warp_map_t *map, warp_value_t key, warp_value_t *out) {
     CHECK(is_valid_key_type(key));
+    if(map->count == 0) return false;
+    
     entry_t *entry = find_entry(map->entries, map->capacity, key);
     if(WARP_IS_NIL(entry->key)) return false;
     *out = entry->value;

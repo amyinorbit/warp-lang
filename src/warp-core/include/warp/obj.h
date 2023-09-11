@@ -55,7 +55,7 @@ void warp_list_set(warp_vm_t *vm, warp_list_t *list, int idx, warp_value_t val);
 // MARK: - Table interface
 
 warp_map_t *warp_map_new(warp_vm_t *vm);
-void warp_map_set(warp_vm_t *vm, warp_map_t *map, warp_value_t key, warp_value_t val);
+bool warp_map_set(warp_vm_t *vm, warp_map_t *map, warp_value_t key, warp_value_t val);
 bool warp_map_delete(warp_map_t *map, warp_value_t key, warp_value_t *out);
 bool warp_map_get(warp_map_t *map, warp_value_t key, warp_value_t *out);
 
