@@ -125,14 +125,14 @@ warp_result_t warp_run(warp_vm_t *vm) {
         uint8_t instr;
 #if DEBUG_TRACE_EXEC == 1
         fprintf(stdout, "\n===\n");
-        disassemble_instr(vm->chunk, (int)(vm->ip - vm->chunk->code), stdout);
-
-        fprintf(stdout, "\n---\n");
         for(warp_value_t *v = vm->stack; v != vm->sp; ++v) {
             printf("[");
             print_value(*v, stdout);
             printf("]\n");
         }
+        fprintf(stdout, "---\n");
+        disassemble_instr(vm->chunk, (int)(vm->ip - vm->chunk->code), stdout);
+        fprintf(stdout, "===\n");
 #endif
         switch(instr = read_8(vm)) {            
         case OP_CONST:
@@ -232,19 +232,19 @@ warp_result_t warp_run(warp_vm_t *vm) {
         }
 		
 		case OP_PRINT:
-	        term_set_fg(stdout, TERM_GREEN);
-	        printf("=> ");
-	        term_style_reset(stdout);
+	        // term_set_fg(stdout, TERM_GREEN);
+	        // printf("=> ");
+	        // term_style_reset(stdout);
 	        print_value(peek(vm, 0), stdout);
-	        printf("\n");
+	        // printf("\n");
 			break;
             
         case OP_RETURN:
-            // term_set_fg(stdout, TERM_GREEN);
-            // printf("=> ");
-            // term_style_reset(stdout);
-            // print_value(pop(vm), stdout);
-            // printf("\n");
+            term_set_fg(stdout, TERM_GREEN);
+            printf("=> ");
+            term_style_reset(stdout);
+            print_value(pop(vm), stdout);
+            printf("\n");
             return WARP_OK;
         }
     }

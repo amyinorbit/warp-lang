@@ -293,7 +293,9 @@ static const parse_rule_t *get_rule(token_kind_t kind) {
 static void expr_stmt(compiler_t *comp) {
     expression(comp);
     consume_terminator(comp->parser, "expected a line return or a semicolon");
-    emit_byte(comp, OP_POP);
+    if(!check(comp->parser, TOK_RBRACE) && !check(comp->parser, TOK_EOF)) {
+		emit_byte(comp, OP_POP);
+	}
 }
 
 static int parse_variable(compiler_t *comp, const char *msg) {
