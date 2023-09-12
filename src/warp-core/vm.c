@@ -264,7 +264,7 @@ warp_result_t warp_run(warp_vm_t *vm) {
         
         case OP_JMP_FALSE: {
             uint16_t jmp = read_16(vm);
-            if(value_is_falsey(pop(vm))) vm->ip += jmp;
+            if(value_is_falsey(peek(vm, 0))) vm->ip += jmp;
             break;
         }
         

@@ -303,11 +303,13 @@ static void block(compiler_t *comp, bool can_assign) {
 static void if_expr(compiler_t *comp, bool can_assign);
 
 static void if_then_expr(compiler_t *comp, int then_jmp) {
+    emit_instr(comp, OP_POP);
     expression(comp);
     int else_jmp = emit_jump(comp, OP_JMP);
     patch_jump(comp, then_jmp);
     
     if(match(comp->parser, TOK_ELSE)) {
+        emit_instr(comp, OP_POP);
         expression(comp);
     } else {
         emit_instr(comp, OP_NIL);
@@ -317,11 +319,13 @@ static void if_then_expr(compiler_t *comp, int then_jmp) {
 }
 
 static void if_brace_expr(compiler_t *comp, int then_jmp) {
+    emit_instr(comp, OP_POP);
     block(comp, false);
     int else_jmp = emit_jump(comp, OP_JMP);
     patch_jump(comp, then_jmp);
     
     if(match(comp->parser, TOK_ELSE)) {
+        emit_instr(comp, OP_POP);
         if(match(comp->parser, TOK_LBRACE)) {
             block(comp, false);
         } else if(match(comp->parser, TOK_IF)) {
