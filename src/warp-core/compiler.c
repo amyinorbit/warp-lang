@@ -300,11 +300,21 @@ static void block(compiler_t *comp, bool can_assign) {
     end_scope(comp);
 }
 
-// static void if_then_expr(compiler_t *comp) {
-//
-// }
-
 static void if_expr(compiler_t *comp, bool can_assign);
+
+static void if_then_expr(compiler_t *comp, int then_jmp) {
+    expression(comp);
+    int else_jmp = emit_jump(comp, OP_JMP);
+    patch_jump(comp, then_jmp);
+    
+    if(match(comp->parser, TOK_ELSE)) {
+        expression(comp);
+    } else {
+        emit_instr(comp, OP_NIL);
+    }
+    consume(comp->parser, TOK_END, "missing 'end' after if-else expression");
+    patch_jump(comp, else_jmp);
+}
 
 static void if_brace_expr(compiler_t *comp, int then_jmp) {
     block(comp, false);
@@ -317,7 +327,7 @@ static void if_brace_expr(compiler_t *comp, int then_jmp) {
         } else if(match(comp->parser, TOK_IF)) {
             if_expr(comp, false);
         } else {
-            error_at(comp->parser, current(comp->parser), "missing else clause");
+            error_at(comp->parser, current(comp->parser), "missing else expression");
         }
     } else {
         emit_instr(comp, OP_NIL);
@@ -330,8 +340,13 @@ static void if_expr(compiler_t *comp, bool can_assign) {
     expression(comp);
     int then_jmp = emit_jump(comp, OP_JMP_FALSE);
     
-    consume(comp->parser, TOK_LBRACE, "missing '{' after if condition");
-    if_brace_expr(comp, then_jmp);
+    if(match(comp->parser, TOK_LBRACE)) {
+        if_brace_expr(comp, then_jmp);
+    } else if(match(comp->parser, TOK_THEN)) {
+        if_then_expr(comp, then_jmp);
+    } else {
+        error_at(comp->parser, current(comp->parser), "missing expression after 'if'");
+    }
 }
 
 static void print(compiler_t *comp, bool can_assign) {

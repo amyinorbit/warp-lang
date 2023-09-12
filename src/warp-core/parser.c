@@ -290,7 +290,14 @@ static token_kind_t identifier_kind(const parser_t *parser) {
     switch(parser->start[0]) {
     case 'b': return check_keyword(parser, 1, 4, "reak", TOK_BREAK);
     case 'c': return check_keyword(parser, 1, 7, "ontinue", TOK_CONTINUE);
-    case 'e': return check_keyword(parser, 1, 3, "lse", TOK_ELSE);
+    case 'e':
+        if(parser->current - parser->start >1) {
+            switch(parser->start[1]) {
+                case 'n': return check_keyword(parser, 2, 1, "d", TOK_END);
+                case 'l': return check_keyword(parser, 2, 2, "se", TOK_ELSE);
+            }
+        }
+        break;
     case 'f':
         if (parser->current - parser->start > 1) {
             switch(parser->start[1]) {
@@ -312,7 +319,14 @@ static token_kind_t identifier_kind(const parser_t *parser) {
     case 'n': return check_keyword(parser, 1, 2, "il", TOK_NIL);
     case 'p': return check_keyword(parser, 1, 4, "rint", TOK_PRINT);
     case 'r': return check_keyword(parser, 1, 5, "eturn", TOK_RETURN);
-    case 't': return check_keyword(parser, 1, 3, "rue", TOK_TRUE);
+    case 't':
+        if(parser->current - parser->start > 1) {
+            switch(parser->start[1]) {
+                case 'h': return check_keyword(parser, 2, 2, "en", TOK_THEN);
+                case 'r': check_keyword(parser, 2, 2, "ue", TOK_TRUE);
+            }
+        }
+        break;
     case 'v': return check_keyword(parser, 1, 2, "ar", TOK_VAR);
     case 'w': return check_keyword(parser, 1, 4, "hile", TOK_WHILE);
     }
