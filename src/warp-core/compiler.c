@@ -256,6 +256,26 @@ static void binary(compiler_t *comp, bool can_assign) {
     }
 }
 
+static void and_expr(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
+    
+    int end_jmp = emit_jump(comp, OP_JMP_FALSE);
+    emit_instr(comp, OP_POP);
+    parse_precedence(comp, PREC_AND);
+    patch_jump(comp, end_jmp);
+}
+
+static void or_expr(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
+    
+    int else_jmp = emit_jump(comp, OP_JMP_FALSE);
+    int end_jmp = emit_jump(comp, OP_JMP);
+    patch_jump(comp, else_jmp);
+    emit_instr(comp, OP_POP);
+    parse_precedence(comp, PREC_OR);
+    patch_jump(comp, end_jmp);
+}
+
 static void grouping(compiler_t *comp, bool can_assign) {
     UNUSED(can_assign);
     expression(comp);
@@ -392,9 +412,9 @@ const parse_rule_t rules[] = {
     [TOK_LTLT] =        {NULL,      NULL,       PREC_NONE},
     [TOK_GTGT] =        {NULL,      NULL,       PREC_NONE},
     [TOK_GTGTEQ] =      {NULL,      NULL,       PREC_NONE},
-    [TOK_AMPAMP] =      {NULL,      NULL,       PREC_NONE},
-    [TOK_PIPEPIPE] =    {NULL,      NULL,       PREC_NONE},
-    [TOK_SEMICOLON] =   {NULL,      NULL,       PREC_NONE},
+    [TOK_AMPAMP] =      {NULL,      and_expr,   PREC_AND},
+    [TOK_PIPEPIPE] =    {NULL,      or_expr,    PREC_OR},
+    [TOK_SEMICOLON] =   {NULL,      NULL,       PREC_AND},
     [TOK_NEWLINE] =     {NULL,      NULL,       PREC_NONE},
     [TOK_COLON] =       {NULL,      NULL,       PREC_NONE},
     [TOK_COMMA] =       {NULL,      NULL,       PREC_NONE},

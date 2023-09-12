@@ -370,6 +370,9 @@ token_t scan_token(parser_t *parser) {
         case '?': return make_token(parser, TOK_QUESTION);
         case '"': return string(parser);
         
+        case '&': return make_token(parser, lex_match(parser, '&') ? TOK_AMPAMP : TOK_INVALID);
+        case '|': return make_token(parser, lex_match(parser, '|') ? TOK_PIPEPIPE : TOK_INVALID);
+        
         case '=': return make_token(parser, lex_match(parser, '=') ? TOK_EQEQ : TOK_EQUALS);
         case '!': return make_token(parser, lex_match(parser, '=') ? TOK_BANGEQ : TOK_BANG);
         case '>': return make_token(parser, lex_match(parser, '=') ? TOK_GTEQ : TOK_GT);
