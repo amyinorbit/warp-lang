@@ -50,9 +50,9 @@ static inline uint8_t read_8(warp_vm_t *vm) {
     return *vm->ip++;
 }
 
-// static inline uint16_t read_16(warp_vm_t *vm) {
-//     return (uint16_t)(*vm->ip++) | ((uint16_t)(*vm->ip++) << 8);
-// }
+static inline uint16_t read_16(warp_vm_t *vm) {
+    return (uint16_t)(*vm->ip++) | ((uint16_t)(*vm->ip++) << 8);
+}
 
 static inline warp_value_t read_constant(warp_vm_t *vm) {
     return vm->chunk->constants.data[read_8(vm)];
@@ -167,13 +167,13 @@ warp_result_t warp_run(warp_vm_t *vm) {
         }
         
         case OP_GET_LOCAL: {
-            uint8_t slot = READ_8();
+            uint8_t slot = read_8(vm);
             push(vm, vm->stack[slot]);
             break;
         }
         
         case OP_SET_LOCAL: {
-            uint8_t slot = READ_8();
+            uint8_t slot = read_8(vm);
             vm->stack[slot] = peek(vm, 0);
             break;
         }
@@ -190,7 +190,7 @@ warp_result_t warp_run(warp_vm_t *vm) {
         // can't just POP our way out of all of our locals -- we need to save the top-of-stack
         // first.
         case OP_BLOCK: {
-            uint8_t slots = READ_8();
+            uint8_t slots = read_8(vm);
             warp_value_t val = pop(vm);
             vm->sp -= slots;
             push(vm, val);
@@ -257,6 +257,17 @@ warp_result_t warp_run(warp_vm_t *vm) {
             break;
         }
 		
+        case OP_JMP: {
+            vm->ip += read_16(vm);
+            break;
+        }
+        
+        case OP_JMP_FALSE: {
+            uint16_t jmp = read_16(vm);
+            if(value_is_falsey(pop(vm))) vm->ip += jmp;
+            break;
+        }
+        
 		case OP_PRINT:
 	        // term_set_fg(stdout, TERM_GREEN);
 	        // printf("=> ");

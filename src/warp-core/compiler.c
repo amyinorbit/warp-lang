@@ -73,28 +73,47 @@ static chunk_t *current_chunk(compiler_t *comp) {
 }
 
 static void emit_byte(compiler_t *comp, uint8_t byte) {
-    if(byte != OP_BLOCK) {
-        comp->num_slots += stack_effect[byte];
+    chunk_write(comp->vm, current_chunk(comp), byte, previous(comp->parser)->line);
+}
+
+static void emit_instr(compiler_t *comp, uint8_t instr) {
+    if(instr != OP_BLOCK) {
+        comp->num_slots += stack_effect[instr];
         if(comp->num_slots > comp->max_slots) {
             comp->max_slots = comp->num_slots;
         }
     }
-    chunk_write(comp->vm, current_chunk(comp), byte, previous(comp->parser)->line);
+    emit_byte(comp, instr);
 }
 
 static void emit_bytes(compiler_t *comp, uint8_t byte1, uint8_t byte2) {
-    emit_byte(comp, byte1);
-    chunk_write(comp->vm, current_chunk(comp), byte2, previous(comp->parser)->line);
+    emit_instr(comp, byte1);
+    emit_byte(comp, byte2);
 }
 
-// static void emit_bytes_long(compiler_t *comp, uint8_t byte1, uint16_t operand) {
-//     emit_byte(comp, byte1);
-//     emit_byte(comp, operand & 0x00ff);
-//     emit_byte(comp, operand >> 8);
-// }
+static void emit_bytes_long(compiler_t *comp, uint8_t byte1, uint16_t operand) {
+    emit_byte(comp, byte1);
+    emit_byte(comp, operand & 0x00ff);
+    emit_byte(comp, operand >> 8);
+}
+
+static int emit_jump(compiler_t *comp, uint8_t instr) {
+    emit_bytes_long(comp, instr, 0xffff);
+    return current_chunk(comp)->count - 2;
+}
+
+static void patch_jump(compiler_t *comp, int offset) {
+    int jmp = current_chunk(comp)->count - offset - 2;
+    
+    if(jmp > UINT16_MAX) {
+        error_at(comp->parser, previous(comp->parser), "too much code to jump over");
+    }
+    current_chunk(comp)->code[offset] = jmp & 0xff;
+    current_chunk(comp)->code[offset+1] = (jmp >> 8) & 0xff;
+}
 
 static void emit_return(compiler_t *comp) {
-    emit_byte(comp, OP_RETURN);
+    emit_instr(comp, OP_RETURN);
 }
 
 static void emit_const(compiler_t *comp, warp_value_t value) {
@@ -141,9 +160,9 @@ static void literal(compiler_t *comp, bool can_assign) {
     UNUSED(can_assign);
     token_t tok = *previous(comp->parser);
     switch(tok.kind) {
-        case TOK_TRUE: emit_byte(comp, OP_TRUE); break;
-        case TOK_FALSE: emit_byte(comp, OP_FALSE); break;
-        case TOK_NIL: emit_byte(comp, OP_NIL); break;
+        case TOK_TRUE: emit_instr(comp, OP_TRUE); break;
+        case TOK_FALSE: emit_instr(comp, OP_FALSE); break;
+        case TOK_NIL: emit_instr(comp, OP_NIL); break;
         default: UNREACHABLE(); break;
     }
 }
@@ -207,8 +226,8 @@ static void unary(compiler_t *comp, bool can_assign) {
     
     expression(comp);    
     switch(op.kind) {
-    case TOK_MINUS: emit_byte(comp, OP_NEG); break;
-    case TOK_BANG: emit_byte(comp, OP_NOT); break;
+    case TOK_MINUS: emit_instr(comp, OP_NEG); break;
+    case TOK_BANG: emit_instr(comp, OP_NOT); break;
     default: UNREACHABLE(); break;
     }
 }
@@ -221,16 +240,16 @@ static void binary(compiler_t *comp, bool can_assign) {
     parse_precedence(comp, rule->precedence + 1);
     
     switch(op.kind) {
-    case TOK_PLUS: emit_byte(comp, OP_ADD); break;
-    case TOK_MINUS: emit_byte(comp, OP_SUB); break;
-    case TOK_STAR: emit_byte(comp, OP_MUL); break;
-    case TOK_SLASH: emit_byte(comp, OP_DIV); break;
+    case TOK_PLUS: emit_instr(comp, OP_ADD); break;
+    case TOK_MINUS: emit_instr(comp, OP_SUB); break;
+    case TOK_STAR: emit_instr(comp, OP_MUL); break;
+    case TOK_SLASH: emit_instr(comp, OP_DIV); break;
     
-    case TOK_LT: emit_byte(comp, OP_LT); break;
-    case TOK_GT: emit_byte(comp, OP_GT); break;
-    case TOK_LTEQ: emit_byte(comp, OP_LTEQ); break;
-    case TOK_GTEQ: emit_byte(comp, OP_GTEQ); break;
-    case TOK_EQEQ: emit_byte(comp, OP_EQ); break;
+    case TOK_LT: emit_instr(comp, OP_LT); break;
+    case TOK_GT: emit_instr(comp, OP_GT); break;
+    case TOK_LTEQ: emit_instr(comp, OP_LTEQ); break;
+    case TOK_GTEQ: emit_instr(comp, OP_GTEQ); break;
+    case TOK_EQEQ: emit_instr(comp, OP_EQ); break;
     case TOK_BANGEQ: emit_bytes(comp, OP_EQ, OP_NOT); break;
     
     default: UNREACHABLE(); return;
@@ -266,7 +285,7 @@ static bool check_end_block(parser_t *parser) {
 static void block_body(compiler_t *comp) {
     // If we have an empty block, we must still make sure we return nil from that block;
     if(check_end_block(comp->parser)) {
-        emit_byte(comp, OP_NIL);
+        emit_instr(comp, OP_NIL);
     }
     while(!check_end_block(comp->parser)) {
         declaration(comp);
@@ -281,10 +300,44 @@ static void block(compiler_t *comp, bool can_assign) {
     end_scope(comp);
 }
 
+// static void if_then_expr(compiler_t *comp) {
+//
+// }
+
+static void if_expr(compiler_t *comp, bool can_assign);
+
+static void if_brace_expr(compiler_t *comp, int then_jmp) {
+    block(comp, false);
+    int else_jmp = emit_jump(comp, OP_JMP);
+    patch_jump(comp, then_jmp);
+    
+    if(match(comp->parser, TOK_ELSE)) {
+        if(match(comp->parser, TOK_LBRACE)) {
+            block(comp, false);
+        } else if(match(comp->parser, TOK_IF)) {
+            if_expr(comp, false);
+        } else {
+            error_at(comp->parser, current(comp->parser), "missing else clause");
+        }
+    } else {
+        emit_instr(comp, OP_NIL);
+    }
+    patch_jump(comp, else_jmp);
+}
+
+static void if_expr(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
+    expression(comp);
+    int then_jmp = emit_jump(comp, OP_JMP_FALSE);
+    
+    consume(comp->parser, TOK_LBRACE, "missing '{' after if condition");
+    if_brace_expr(comp, then_jmp);
+}
+
 static void print(compiler_t *comp, bool can_assign) {
     UNUSED(can_assign);
     expression(comp);
-    emit_byte(comp, OP_PRINT);
+    emit_instr(comp, OP_PRINT);
 }
 
 const parse_rule_t rules[] = {
@@ -343,7 +396,7 @@ const parse_rule_t rules[] = {
     [TOK_WHILE] =       {NULL,      NULL,       PREC_NONE},
     [TOK_BREAK] =       {NULL,      NULL,       PREC_NONE},
     [TOK_CONTINUE] =    {NULL,      NULL,       PREC_NONE},
-    [TOK_IF] =          {NULL,      NULL,       PREC_NONE},
+    [TOK_IF] =          {if_expr,   NULL,       PREC_NONE},
     [TOK_THEN] =        {NULL,      NULL,       PREC_NONE},
     [TOK_ELSE] =        {NULL,      NULL,       PREC_NONE},
     [TOK_END] =         {NULL,      NULL,       PREC_NONE},
@@ -421,7 +474,7 @@ static void define_variable(compiler_t *comp, int idx) {
         way the compiler is written, don't. So we need a GET_LOCAL instruction here so
         we leave the stack as the rest of the language expects it.
         */
-        emit_byte(comp, OP_DUP);
+        emit_instr(comp, OP_DUP);
         return;
     }
     emit_bytes(comp, OP_DEF_GLOB, idx);
@@ -449,17 +502,13 @@ static void declaration(compiler_t *comp) {
     if(match(comp->parser, TOK_VAR)) {
         var_decl_stmt(comp);
         consume_terminator(comp->parser, "expected a line return or a semicolon");
-    // } else if(match(comp->parser, TOK_LBRACE)) {
-    //     begin_scope(comp);
-    //     block(comp);
-    //     end_scope(comp);
     } else {
         expression(comp);
         consume_terminator(comp->parser, "expected a line return or a semicolon");
     }
     
     if(!check_end_block(comp->parser)) {
-		emit_byte(comp, OP_POP);
+		emit_instr(comp, OP_POP);
 	}
     if(comp->parser->panic) synchronize(comp->parser);
 }
