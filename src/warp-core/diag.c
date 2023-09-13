@@ -9,6 +9,7 @@
 #include "diag_impl.h"
 #include <term/colors.h>
 #include <tgmath.h>
+#include <ctype.h>
 
 static const char *diag_level_str(warp_diag_level_t level) {
     switch(level) {
@@ -28,6 +29,15 @@ static term_color_t diag_level_color(warp_diag_level_t level) {
     UNREACHABLE();
 }
 
+void put_n_spaces(const char *line, int col, FILE *out) {
+    for(int i = 0; i < col && line[i]; ++i) {
+        if(line[i] == '\t')
+            fputc('\t', out);
+        else if(isprint(line[i]))
+            fputc(' ', out);
+    }
+}
+
 void warp_print_diag(const warp_diag_t *diag, void *user_info) {
     UNUSED(user_info);
     
@@ -42,10 +52,8 @@ void warp_print_diag(const warp_diag_t *diag, void *user_info) {
     fprintf(stderr, "%.*s\n",
             (int)(diag->line_end - diag->line_start),
             diag->line_start);
-            
-    for(int i = 1; i < diag->span.column; ++i) {
-        fputc(' ', stderr);
-    }
+    
+    put_n_spaces(diag->line_start, diag->span.column-1, stderr);
     term_set_fg(stderr, TERM_GREEN);
     fputc('^', stderr);
     for(int i = 1; i < diag->span.length; ++i) {
