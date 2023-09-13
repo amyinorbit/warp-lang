@@ -303,8 +303,8 @@ static void end_scope(compiler_t *comp) {
         comp->local_count -= 1;
         num_slots += 1;
     }
-    ASSERT(num_slots < UINT8_MAX);
-    emit_bytes(comp, OP_BLOCK, num_slots);
+    ASSERT(num_slots < UINT16_MAX);
+    emit_bytes_long(comp, OP_BLOCK, num_slots);
     comp->num_slots -= (num_slots);
 }
 
