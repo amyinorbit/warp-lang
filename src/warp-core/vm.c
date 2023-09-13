@@ -257,6 +257,11 @@ warp_result_t warp_run(warp_vm_t *vm) {
             break;
         }
 		
+		case OP_LOOP: {
+			vm->ip -= read_16(vm);
+			break;
+		}
+		
         case OP_JMP: {
             vm->ip += read_16(vm);
             break;

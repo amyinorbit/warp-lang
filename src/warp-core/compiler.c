@@ -91,8 +91,8 @@ static void emit_bytes(compiler_t *comp, uint8_t byte1, uint8_t byte2) {
     emit_byte(comp, byte2);
 }
 
-static void emit_bytes_long(compiler_t *comp, uint8_t byte1, uint16_t operand) {
-    emit_byte(comp, byte1);
+static void emit_bytes_long(compiler_t *comp, uint8_t instr, uint16_t operand) {
+    emit_instr(comp, instr);
     emit_byte(comp, operand & 0x00ff);
     emit_byte(comp, operand >> 8);
 }
@@ -100,6 +100,16 @@ static void emit_bytes_long(compiler_t *comp, uint8_t byte1, uint16_t operand) {
 static int emit_jump(compiler_t *comp, uint8_t instr) {
     emit_bytes_long(comp, instr, 0xffff);
     return current_chunk(comp)->count - 2;
+}
+
+static void emit_loop(compiler_t *comp, int start) {
+	emit_instr(comp, OP_LOOP);
+	int jmp = current_chunk(comp)->count - start + 2;
+    if(jmp > UINT16_MAX) {
+        error_at(comp->parser, previous(comp->parser), "too much code to jump over");
+    }
+	emit_byte(comp, jmp & 0xff);
+	emit_byte(comp, (jmp >> 8) & 0xff);
 }
 
 static void patch_jump(compiler_t *comp, int offset) {
@@ -373,6 +383,21 @@ static void if_expr(compiler_t *comp, bool can_assign) {
     }
 }
 
+static void while_expr(compiler_t *comp, bool can_assign) {
+	UNUSED(can_assign);
+	
+	int start_jmp = current_chunk(comp)->count;
+	expression(comp);
+	
+	int exit_jmp = emit_jump(comp, OP_JMP_FALSE);
+	emit_instr(comp, OP_POP);
+	
+	consume(comp->parser, TOK_LBRACE, "missing loop body");
+	block(comp, can_assign);
+	emit_loop(comp, start_jmp);
+	patch_jump(comp, exit_jmp);
+}
+
 static void print(compiler_t *comp, bool can_assign) {
     UNUSED(can_assign);
     expression(comp);
@@ -432,7 +457,7 @@ const parse_rule_t rules[] = {
     [TOK_LET] =         {NULL,      NULL,       PREC_NONE},
     [TOK_RETURN] =      {NULL,      NULL,       PREC_NONE},
     [TOK_FOR] =         {NULL,      NULL,       PREC_NONE},
-    [TOK_WHILE] =       {NULL,      NULL,       PREC_NONE},
+    [TOK_WHILE] =       {while_expr,NULL,       PREC_NONE},
     [TOK_BREAK] =       {NULL,      NULL,       PREC_NONE},
     [TOK_CONTINUE] =    {NULL,      NULL,       PREC_NONE},
     [TOK_IF] =          {if_expr,   NULL,       PREC_NONE},
