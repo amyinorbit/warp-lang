@@ -407,7 +407,7 @@ static void block(compiler_t *comp, bool can_assign) {
     end_scope(comp);
 }
 
-static void if_expr(compiler_t *comp, bool can_assign);
+static void if_(compiler_t *comp, bool can_assign);
 
 static void if_then_expr(compiler_t *comp, int then_jmp) {
     emit_instr(comp, OP_POP);
@@ -436,17 +436,18 @@ static void if_brace_expr(compiler_t *comp, int then_jmp) {
         if(match(comp->parser, TOK_LBRACE)) {
             block(comp, false);
         } else if(match(comp->parser, TOK_IF)) {
-            if_expr(comp, false);
+            if_(comp, false);
         } else {
             error_at(comp->parser, current(comp->parser), "missing else expression");
         }
     } else {
+        emit_instr(comp, OP_POP);
         emit_instr(comp, OP_NIL);
     }
     patch_jump(comp, else_jmp);
 }
 
-static void if_expr(compiler_t *comp, bool can_assign) {
+static void if_(compiler_t *comp, bool can_assign) {
     UNUSED(can_assign);
     expression(comp);
     int then_jmp = emit_jump(comp, OP_JMP_FALSE);
@@ -460,7 +461,7 @@ static void if_expr(compiler_t *comp, bool can_assign) {
     }
 }
 
-static void while_expr(compiler_t *comp, bool can_assign) {
+static void while_(compiler_t *comp, bool can_assign) {
     UNUSED(can_assign);
     
     loop_t loop;
@@ -475,6 +476,23 @@ static void while_expr(compiler_t *comp, bool can_assign) {
     
     close_loop(comp);
 }
+
+static void continue_(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
+    if(!comp->loop) {
+        error_at(comp->parser, previous(comp->parser), "'continue' outside of a loop body");
+    }
+    drop_locals(comp, comp->loop->scope_depth - 1);
+    emit_loop(comp, comp->loop->start);
+}
+
+// static void break_(compiler_t *comp, bool can_assign) {
+//     UNUSED(can_assign);
+//     if(!comp->loop) {
+//         error_at(comp->parser, previous(comp->parser), "'break' outside of a loop body");
+//     }
+//     // TODO: add some stuff here
+// }
 
 static void print(compiler_t *comp, bool can_assign) {
     UNUSED(can_assign);
@@ -535,10 +553,10 @@ const parse_rule_t rules[] = {
     [TOK_LET] =         {NULL,      NULL,       PREC_NONE},
     [TOK_RETURN] =      {NULL,      NULL,       PREC_NONE},
     [TOK_FOR] =         {NULL,      NULL,       PREC_NONE},
-    [TOK_WHILE] =       {while_expr,NULL,       PREC_NONE},
+    [TOK_WHILE] =       {while_,    NULL,       PREC_NONE},
     [TOK_BREAK] =       {NULL,      NULL,       PREC_NONE},
-    [TOK_CONTINUE] =    {NULL,      NULL,       PREC_NONE},
-    [TOK_IF] =          {if_expr,   NULL,       PREC_NONE},
+    [TOK_CONTINUE] =    {continue_, NULL,       PREC_NONE},
+    [TOK_IF] =          {if_,       NULL,       PREC_NONE},
     [TOK_THEN] =        {NULL,      NULL,       PREC_NONE},
     [TOK_ELSE] =        {NULL,      NULL,       PREC_NONE},
     [TOK_END] =         {NULL,      NULL,       PREC_NONE},
