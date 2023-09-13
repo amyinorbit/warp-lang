@@ -33,10 +33,19 @@ typedef enum {
 
 typedef struct local_t local_t;
 typedef struct compiler_t compiler_t;
+typedef struct loop_t loop_t;
 
 struct local_t {
     token_t     name;
     int         depth;
+};
+
+struct loop_t {
+    loop_t      *enclosing;
+    int         start;
+    int         body;
+    int         exit_jmp;
+    int         scope_depth;
 };
 
 struct compiler_t {
@@ -44,6 +53,8 @@ struct compiler_t {
     warp_vm_t   *vm;
     chunk_t     *chunk;
     parser_t    *parser;
+    
+    loop_t      *loop;
     
     local_t     locals[UINT8_COUNT];
     int         local_count;
@@ -64,6 +75,12 @@ typedef struct {
 
 #define WARP_OP(code, _, effect) [OP_##code] = effect,
 static int stack_effect[] = {
+#include <warp/instr.def>
+};
+#undef WARP_OP
+
+#define WARP_OP(code, op_size, _) [OP_##code] = op_size+1,
+static int code_size[] = {
 #include <warp/instr.def>
 };
 #undef WARP_OP
@@ -103,13 +120,13 @@ static int emit_jump(compiler_t *comp, uint8_t instr) {
 }
 
 static void emit_loop(compiler_t *comp, int start) {
-	emit_instr(comp, OP_LOOP);
-	int jmp = current_chunk(comp)->count - start + 2;
+    emit_instr(comp, OP_LOOP);
+    int jmp = current_chunk(comp)->count - start + 2;
     if(jmp > UINT16_MAX) {
         error_at(comp->parser, previous(comp->parser), "too much code to jump over");
     }
-	emit_byte(comp, jmp & 0xff);
-	emit_byte(comp, (jmp >> 8) & 0xff);
+    emit_byte(comp, jmp & 0xff);
+    emit_byte(comp, (jmp >> 8) & 0xff);
 }
 
 static void patch_jump(compiler_t *comp, int offset) {
@@ -145,6 +162,73 @@ static inline int add_ident_const(compiler_t *comp, const token_t *name) {
         error_at(comp->parser, previous(comp->parser), "too many constants in one bytecode unit");
     }
     return idx;
+}
+
+static void begin_scope(compiler_t *comp) {
+    comp->scope_depth += 1;
+}
+
+static int drop_locals(compiler_t *comp, int target_scope_depth) {
+    int num_slots = 0;
+    while(comp->local_count > 0 && comp->locals[comp->local_count-1].depth > target_scope_depth) {
+        comp->local_count -= 1;
+        num_slots += 1;
+    }
+    ASSERT(num_slots < UINT16_MAX);
+    emit_bytes_long(comp, OP_BLOCK, num_slots);
+    return num_slots;
+}
+
+static void end_scope(compiler_t *comp) {
+    comp->scope_depth -= 1;
+    comp->num_slots -= drop_locals(comp, comp->scope_depth);
+}
+
+static void open_loop(compiler_t *comp, loop_t *loop) {
+    ASSERT(loop != NULL);
+    begin_scope(comp);
+    loop->enclosing = comp->loop;
+    loop->start = current_chunk(comp)->count - 1;
+    loop->body = -1;
+    loop->exit_jmp = -1;
+    loop->scope_depth = comp->scope_depth;
+    comp->loop = loop;
+}
+
+static void test_loop_jump(compiler_t *comp) {
+    ASSERT(comp->loop != NULL);
+    ASSERT(comp->loop->exit_jmp == -1);
+    comp->loop->exit_jmp = emit_jump(comp, OP_JMP_FALSE);
+}
+
+static void start_loop_body(compiler_t *comp) {
+    ASSERT(comp->loop != NULL);
+    ASSERT(comp->loop->body == -1);
+    comp->loop->body = current_chunk(comp)->count;
+}
+
+static void close_loop(compiler_t *comp) {
+    ASSERT(comp->loop != NULL);
+    loop_t *loop = comp->loop;
+    ASSERT(loop->start >= 0);
+    ASSERT(loop->body >= 0);
+    ASSERT(loop->exit_jmp >= 0);
+    
+    int i = loop->body;
+    while(i < current_chunk(comp)->count) {
+        uint8_t instr = current_chunk(comp)->code[i];
+        if(instr != OP_ENDLOOP) {
+            i += code_size[instr];
+            continue;
+        }
+        current_chunk(comp)->code[i] = OP_JMP;
+    }
+    comp->loop = loop->enclosing;
+    end_scope(comp);
+    
+    emit_loop(comp, loop->start);
+    patch_jump(comp, loop->exit_jmp);
+    comp->loop = loop->enclosing;
 }
 
 static void end_compiler(compiler_t *comp) {
@@ -292,22 +376,6 @@ static void grouping(compiler_t *comp, bool can_assign) {
     consume(comp->parser, TOK_RPAREN, "missing ')' after expression");
 }
 
-static void begin_scope(compiler_t *comp) {
-    comp->scope_depth += 1;
-}
-
-static void end_scope(compiler_t *comp) {
-    comp->scope_depth -= 1;
-    int num_slots = 0;
-    while(comp->local_count > 0 && comp->locals[comp->local_count-1].depth > comp->scope_depth) {
-        comp->local_count -= 1;
-        num_slots += 1;
-    }
-    ASSERT(num_slots < UINT16_MAX);
-    emit_bytes_long(comp, OP_BLOCK, num_slots);
-    comp->num_slots -= (num_slots);
-}
-
 static bool check_end_block(parser_t *parser) {
     return check(parser, TOK_RBRACE) || check(parser, TOK_EOF);
 }
@@ -384,18 +452,19 @@ static void if_expr(compiler_t *comp, bool can_assign) {
 }
 
 static void while_expr(compiler_t *comp, bool can_assign) {
-	UNUSED(can_assign);
-	
-	int start_jmp = current_chunk(comp)->count;
-	expression(comp);
-	
-	int exit_jmp = emit_jump(comp, OP_JMP_FALSE);
-	emit_instr(comp, OP_POP);
-	
-	consume(comp->parser, TOK_LBRACE, "missing loop body");
-	block(comp, can_assign);
-	emit_loop(comp, start_jmp);
-	patch_jump(comp, exit_jmp);
+    UNUSED(can_assign);
+    
+    loop_t loop;
+    open_loop(comp, &loop);
+    expression(comp);
+    test_loop_jump(comp);
+    start_loop_body(comp);
+    
+    emit_instr(comp, OP_POP);
+    consume(comp->parser, TOK_LBRACE, "missing loop body");
+    block_body(comp);
+    
+    close_loop(comp);
 }
 
 static void print(compiler_t *comp, bool can_assign) {
@@ -572,8 +641,8 @@ static void declaration(compiler_t *comp) {
     }
     
     if(!check_end_block(comp->parser)) {
-		emit_instr(comp, OP_POP);
-	}
+        emit_instr(comp, OP_POP);
+    }
     if(comp->parser->panic) synchronize(comp->parser);
 }
 

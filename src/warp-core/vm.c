@@ -272,6 +272,10 @@ warp_result_t warp_run(warp_vm_t *vm) {
             if(value_is_falsey(peek(vm, 0))) vm->ip += jmp;
             break;
         }
+		
+		case OP_ENDLOOP:
+			UNREACHABLE();
+			break;
         
 		case OP_PRINT:
 	        // term_set_fg(stdout, TERM_GREEN);
