@@ -173,6 +173,11 @@ static void skip_whitespace(parser_t *parser) {
             parser->start_of_line = true;
             break;
             
+        case '#':
+            while(lex_peek(parser) != '\n' && !is_at_end(parser)) {
+                lex_advance(parser);
+            }
+            break;
         case '/':
             if(lex_peek_next(parser) == '/') {
                 while(lex_peek(parser) != '\n' && !is_at_end(parser)) {

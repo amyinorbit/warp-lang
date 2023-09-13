@@ -35,7 +35,7 @@ extern "C" {
     #elif (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5))
         #define UNREACHABLE() __builtin_unreachable()
     #else
-        #define UNREACHABLE()
+        #define UNREACHABLE() ASSERT(0)
     #endif
 #else
     #define ASSERT(expr) CHECK(expr)

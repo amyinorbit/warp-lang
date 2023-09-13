@@ -188,7 +188,7 @@ static void open_loop(compiler_t *comp, loop_t *loop) {
     ASSERT(loop != NULL);
     begin_scope(comp);
     loop->enclosing = comp->loop;
-    loop->start = current_chunk(comp)->count - 1;
+    loop->start = current_chunk(comp)->count;
     loop->body = -1;
     loop->exit_jmp = -1;
     loop->scope_depth = comp->scope_depth;
@@ -214,21 +214,30 @@ static void close_loop(compiler_t *comp) {
     ASSERT(loop->body >= 0);
     ASSERT(loop->exit_jmp >= 0);
     
-    int i = loop->body;
-    while(i < current_chunk(comp)->count) {
-        uint8_t instr = current_chunk(comp)->code[i];
-        if(instr != OP_ENDLOOP) {
-            i += code_size[instr];
-            continue;
-        }
-        current_chunk(comp)->code[i] = OP_JMP;
-    }
     comp->loop = loop->enclosing;
     end_scope(comp);
+    emit_instr(comp, OP_POP);
     
     emit_loop(comp, loop->start);
     patch_jump(comp, loop->exit_jmp);
-    comp->loop = loop->enclosing;
+    emit_instr(comp, OP_POP);
+    
+    // Loops evaluate to nil, unless we `break` out of them (in which case they evaluate to nil
+    // or the expression that's break-ed out)
+    emit_instr(comp, OP_NIL);
+    
+    // Patch breaks so we arrive here. Break should leave either nil, or its expression,
+    // on the stack, so we bypass the pop/nil dance above.
+    int i = loop->body;
+    while(i < current_chunk(comp)->count) {
+        uint8_t instr = current_chunk(comp)->code[i];
+        i += code_size[instr];
+        
+        if(instr == OP_ENDLOOP) {
+            current_chunk(comp)->code[i-3] = OP_JMP;
+            patch_jump(comp, i);
+        }
+    }
 }
 
 static void end_compiler(compiler_t *comp) {

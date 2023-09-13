@@ -52,9 +52,29 @@ static void repl() {
 }
 
 static void run_file(const char *path) {
+    FILE *f = fopen(path, "rb");
+    if(!f) {
+        fprintf(stderr, "could not open script file '%s'\n", path);
+        return;
+    }
+    
+    size_t length = 0;
+    char *source = NULL;
+    
+    fseek(f, 0, SEEK_END);
+    length = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    
+    source = malloc(length + 1);
+    fread(source, 1, length, f);
+    source[length] = '\0';
+    fclose(f);
+    
     warp_vm_t *vm = warp_vm_new(&(warp_cfg_t){.allocator = NULL});
-    // warp_interpret(vm, "print 1 + 3");
+    warp_interpret(vm, source, length);
     warp_vm_destroy(vm);
+    
+    free(source);
 }
 
 int main(int argc, const char **argv) {
