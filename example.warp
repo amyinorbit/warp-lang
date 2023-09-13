@@ -1,20 +1,14 @@
 #!/usr/bin/env warp
 
-var count = 0;
 
-while count < 10 {
-
-	var test = 0
-	while test < 5 {
-		print "loop 1\n"
-		test = test + 1
-	}
-	
-	while test < 10 {
-		print "loop 2\n"
-		test =  test + 1
-	}
-	
-	print "outer loop\n"
-	count = count + 1
+{
+    var count = 0
+    while count < 5 {
+        "123" 123
+        count = count + 1
+        if count == 3 {
+            break "nope!"
+        }
+        print "<>"
+    }
 }

@@ -235,7 +235,7 @@ static void close_loop(compiler_t *comp) {
         
         if(instr == OP_ENDLOOP) {
             current_chunk(comp)->code[i-3] = OP_JMP;
-            patch_jump(comp, i);
+            patch_jump(comp, i-2);
         }
     }
 }
@@ -486,13 +486,21 @@ static void continue_(compiler_t *comp, bool can_assign) {
     emit_loop(comp, comp->loop->start);
 }
 
-// static void break_(compiler_t *comp, bool can_assign) {
-//     UNUSED(can_assign);
-//     if(!comp->loop) {
-//         error_at(comp->parser, previous(comp->parser), "'break' outside of a loop body");
-//     }
-//     // TODO: add some stuff here
-// }
+static void break_(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
+    if(!comp->loop) {
+        error_at(comp->parser, previous(comp->parser), "'break' outside of a loop body");
+    }
+    
+    if(check_terminator(comp->parser)) {
+        emit_instr(comp, OP_NIL);
+    } else {
+        expression(comp);
+    }
+    
+    drop_locals(comp, comp->loop->scope_depth - 1);
+    emit_jump(comp, OP_ENDLOOP);
+}
 
 static void print(compiler_t *comp, bool can_assign) {
     UNUSED(can_assign);
@@ -554,7 +562,7 @@ const parse_rule_t rules[] = {
     [TOK_RETURN] =      {NULL,      NULL,       PREC_NONE},
     [TOK_FOR] =         {NULL,      NULL,       PREC_NONE},
     [TOK_WHILE] =       {while_,    NULL,       PREC_NONE},
-    [TOK_BREAK] =       {NULL,      NULL,       PREC_NONE},
+    [TOK_BREAK] =       {break_,    NULL,       PREC_NONE},
     [TOK_CONTINUE] =    {continue_, NULL,       PREC_NONE},
     [TOK_IF] =          {if_,       NULL,       PREC_NONE},
     [TOK_THEN] =        {NULL,      NULL,       PREC_NONE},
