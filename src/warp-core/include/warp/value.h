@@ -6,7 +6,8 @@
 // Licensed under the MIT License
 // =^•.•^=
 //===--------------------------------------------------------------------------------------------===
-#pragma once
+#ifndef _WARP_VALUE_H_
+#define _WARP_VALUE_H_
 #include <warp/common.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -27,6 +28,7 @@ typedef struct warp_str_t   warp_str_t;
 typedef struct warp_list_t  warp_list_t;
 typedef struct warp_map_t   warp_map_t;
 typedef struct warp_fn_t    warp_fn_t;
+typedef struct warp_native_t warp_native_t;
 
 typedef int32_t      warp_int_t;
 typedef uint32_t     warp_uint_t;
@@ -98,9 +100,12 @@ struct warp_value_t {
     
 #endif
 
+typedef void (*warp_native_f)(warp_vm_t *vm, warp_value_t *args);
+
 void warp_print_value(warp_value_t value, FILE *out);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
+#endif /* _WARP_VALUE_H_ */

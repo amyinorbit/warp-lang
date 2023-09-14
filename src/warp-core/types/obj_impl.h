@@ -12,6 +12,7 @@
 #include <warp/obj.h>
 #include <stdint.h>
 #include <stdio.h>
+#include "../chunk.h"
 #include "../memory.h"
 
 #define ALLOCATE_OBJ(vm, T, tag) \
@@ -57,11 +58,21 @@ void warp_map_free(warp_vm_t *vm, warp_map_t *map);
 
 struct warp_fn_t {
     warp_obj_t      obj;
-    warp_uint_t     arity;
-    chunk_t         chunk;
     warp_str_t      *name;
+    uint8_t         arity;
+    chunk_t         chunk;
+};
+
+struct warp_native_t {
+    warp_obj_t      obj;
+    warp_str_t      *name;
+    uint8_t         arity;
+    warp_native_f   native;
 };
 
 void warp_fn_free(warp_vm_t *vm, warp_fn_t *fn);
+
+warp_native_t *warp_native_new(warp_vm_t *vm, const char *name, uint8_t arity, warp_native_f native);
+void warp_native_free(warp_vm_t *vm, warp_native_t *fn);
 
 #endif /* ifndef _OBJ_IMPL_H_ */

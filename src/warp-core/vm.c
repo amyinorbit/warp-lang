@@ -20,6 +20,12 @@ static void reset_stack(warp_vm_t *vm) {
     vm->sp = vm->stack;
 }
 
+static void println(warp_vm_t *vm, warp_value_t *slots) {
+    UNUSED(vm);
+    warp_print_value(slots[0], stdout);
+    putc('\n', stdout);
+}
+
 warp_vm_t *warp_vm_new(const warp_cfg_t *cfg) {
     ASSERT(cfg);
     allocator_t alloc = cfg->allocator ? cfg->allocator : default_allocator;
@@ -34,6 +40,8 @@ warp_vm_t *warp_vm_new(const warp_cfg_t *cfg) {
     vm->globals = warp_map_new(vm);
     
     reset_stack(vm);
+    
+    warp_register_native(vm, "println", 1, &println);
     return vm;
 }
 
@@ -104,11 +112,28 @@ static bool invoke(warp_vm_t *vm, warp_fn_t *fn, uint8_t arg_count) {
     return true;
 }
 
+static bool invoke_native(warp_vm_t *vm, warp_native_t *fn, uint8_t arg_count) {
+    if(arg_count != fn->arity) {
+        runtime_error(vm, "calling %s() with %d arguments, %d required",
+            fn->name ? fn->name->data : "<script>",
+            (int)arg_count, (int)fn->arity);
+        return false;
+    }
+    warp_value_t *slots = vm->sp - arg_count;
+    fn->native(vm, slots);
+    warp_value_t result = slots[0];
+    vm->sp -= arg_count + 1;
+    push(vm, result);
+    return true;
+}
+
 static bool invoke_val(warp_vm_t *vm, warp_value_t val, uint8_t arg_count) {
     if(WARP_IS_OBJ(val)) {
         switch(WARP_OBJ_KIND(val)) {
         case WARP_OBJ_FN:
             return invoke(vm, WARP_AS_FN(val), arg_count);
+        case WARP_OBJ_NATIVE:
+            return invoke_native(vm, WARP_AS_NATIVE(val), arg_count);
         default:
             break;
         }
@@ -326,12 +351,12 @@ warp_result_t warp_run(warp_vm_t *vm) {
         case OP_RETURN: {
             warp_value_t result = pop(vm);
             --vm->frame_count;
-            if(vm->frame_count == 0) {
-                return WARP_OK;
-            }
             
             vm->sp = frame->slots;
             push(vm, result);
+            if(vm->frame_count == 0) {
+                return WARP_OK;
+            }
             frame = &vm->frames[vm->frame_count-1];
             break;
         }
@@ -348,6 +373,15 @@ warp_result_t warp_run(warp_vm_t *vm) {
 #undef READ_8
 #undef READ_16
 #undef READ_CONST
+}
+
+void warp_register_native(warp_vm_t *vm, const char *name, uint8_t arity, warp_native_f fn) {
+    ASSERT(vm);
+    ASSERT(name);
+    ASSERT(fn);
+    
+    warp_native_t *native = warp_native_new(vm, name, arity, fn);
+    warp_map_set(vm, vm->globals, WARP_OBJ_VAL(native->name), WARP_OBJ_VAL(native));
 }
 
 bool warp_get_slot(warp_vm_t *vm, int slot, warp_value_t *out) {
@@ -367,10 +401,7 @@ warp_result_t warp_interpret(warp_vm_t *vm, const char *fname, const char *sourc
     if(!fn) return WARP_COMPILE_ERROR;
     
     push(vm, WARP_OBJ_VAL(fn));
-    call_frame_t *frame = &vm->frames[vm->frame_count++];
-    frame->fn = fn;
-    frame->ip = fn->chunk.code;
-    frame->slots = vm->stack;
+    invoke(vm, fn, 0);
     
     return warp_run(vm);
 }

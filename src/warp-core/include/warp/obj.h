@@ -12,14 +12,17 @@
 
 #include <warp/common.h>
 #include <warp/value.h>
-#include "../chunk.h"
 #include <stdint.h>
+
+
+typedef void (*warp_native_f)(warp_vm_t *vm, warp_value_t *args);
 
 typedef enum {
     WARP_OBJ_STR,
     // WARP_OBJ_LIST,
     WARP_OBJ_MAP,
     WARP_OBJ_FN,
+    WARP_OBJ_NATIVE,
 } warp_obj_kind_t;
 
 struct warp_obj_t {
@@ -40,6 +43,8 @@ static inline bool warp_is_obj_kind(warp_value_t val, warp_obj_kind_t kind) {
 
 #define WARP_IS_FN(value)       (warp_is_obj_kind(value, WARP_OBJ_FN))
 #define WARP_AS_FN(value)       ((warp_fn_t *)WARP_AS_OBJ(value))
+#define WARP_IS_NATIVE(value)   (warp_is_obj_kind(value, WARP_OBJ_NATIVE))
+#define WARP_AS_NATIVE(value)   ((warp_native_t *)WARP_AS_OBJ(value))
 
 // MARK: - String interface
 

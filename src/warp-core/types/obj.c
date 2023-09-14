@@ -23,6 +23,8 @@ void obj_destroy(warp_vm_t *vm, warp_obj_t *obj) {
         break;
     case WARP_OBJ_FN:
         warp_fn_free(vm, (warp_fn_t *)obj);
+    case WARP_OBJ_NATIVE:
+        warp_native_free(vm, (warp_native_t *)obj);
         break;
     }
 }
@@ -51,6 +53,9 @@ void obj_print(warp_value_t val, FILE *out) {
         break;
     case WARP_OBJ_FN:
         fprintf(out, "<fn %s()>", WARP_AS_FN(val)->name ? WARP_AS_FN(val)->name->data : "<script>");
+        break;
+    case WARP_OBJ_NATIVE:
+        fprintf(out, "<native %s()>", WARP_AS_NATIVE(val)->name->data);
         break;
     }
 }

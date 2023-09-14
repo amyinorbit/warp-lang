@@ -6,7 +6,8 @@
 // Licensed under the MIT License
 // =^•.•^=
 //===--------------------------------------------------------------------------------------------===
-#pragma once
+#ifndef _CHUNK_H_
+#define _CHUNK_H_
 #include <warp/warp.h>
 #include "buffers.h"
 
@@ -25,3 +26,5 @@ void chunk_fini(warp_vm_t *vm, chunk_t *chunk);
 void chunk_write(warp_vm_t *vm, chunk_t *chunk, uint8_t byte, int line);
 
 int chunk_add_const(warp_vm_t *vm, chunk_t *chunk, warp_value_t value);
+
+#endif /* _CHUNK_H_ */
