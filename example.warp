@@ -1,6 +1,5 @@
 #!/usr/bin/env warp
 
-
 {
     var count = 0
     while count < 5 {

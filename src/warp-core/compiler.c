@@ -54,7 +54,7 @@ struct loop_t {
 };
 
 struct compiler_t {
-    // compiler_t  *enclosing;
+    compiler_t      *enclosing;
     warp_fn_t       *fn;
     compiler_kind_t kind;
     
@@ -362,7 +362,7 @@ static void binary(compiler_t *comp, bool can_assign) {
     }
 }
 
-static void and_expr(compiler_t *comp, bool can_assign) {
+static void and_(compiler_t *comp, bool can_assign) {
     UNUSED(can_assign);
     
     int end_jmp = emit_jump(comp, OP_JMP_FALSE);
@@ -371,7 +371,7 @@ static void and_expr(compiler_t *comp, bool can_assign) {
     patch_jump(comp, end_jmp);
 }
 
-static void or_expr(compiler_t *comp, bool can_assign) {
+static void or_(compiler_t *comp, bool can_assign) {
     UNUSED(can_assign);
     
     int else_jmp = emit_jump(comp, OP_JMP_FALSE);
@@ -544,8 +544,8 @@ const parse_rule_t rules[] = {
     [TOK_LTLT] =        {NULL,      NULL,       PREC_NONE},
     [TOK_GTGT] =        {NULL,      NULL,       PREC_NONE},
     [TOK_GTGTEQ] =      {NULL,      NULL,       PREC_NONE},
-    [TOK_AMPAMP] =      {NULL,      and_expr,   PREC_AND},
-    [TOK_PIPEPIPE] =    {NULL,      or_expr,    PREC_OR},
+    [TOK_AMPAMP] =      {NULL,      and_,       PREC_AND},
+    [TOK_PIPEPIPE] =    {NULL,      or_,        PREC_OR},
     [TOK_SEMICOLON] =   {NULL,      NULL,       PREC_NONE},
     [TOK_NEWLINE] =     {NULL,      NULL,       PREC_NONE},
     [TOK_COLON] =       {NULL,      NULL,       PREC_NONE},
@@ -559,7 +559,7 @@ const parse_rule_t rules[] = {
     [TOK_TRUE] =        {literal,   NULL,       PREC_NONE},
     [TOK_FALSE] =       {literal,   NULL,       PREC_NONE},
     [TOK_NIL] =         {literal,   NULL,       PREC_NONE},
-    [TOK_FUN] =         {NULL,      NULL,       PREC_NONE},
+    [TOK_FN] =          {NULL,      NULL,       PREC_NONE},
     [TOK_VAR] =         {NULL,      NULL,       PREC_NONE},
     [TOK_LET] =         {NULL,      NULL,       PREC_NONE},
     [TOK_RETURN] =      {NULL,      NULL,       PREC_NONE},
@@ -636,9 +636,14 @@ static void declare_variable(compiler_t *comp) {
     add_local(comp, name);
 }
 
+static void mark_initialized(compiler_t *comp) {
+    if(comp->scope_depth == 0) return;
+    comp->locals[comp->local_count - 1].depth = comp->scope_depth;
+}
+
 static void define_variable(compiler_t *comp, int idx) {
     if(comp->scope_depth > 0) {
-        comp->locals[comp->local_count - 1].depth = comp->scope_depth;
+        mark_initialized(comp);
         /*
         Because we're expression-oriented, every expression must leave its results
         on top of the stack. This includes variable declarations, which, because of the

@@ -66,7 +66,7 @@ static const char * token_names[] = {
     [TOK_TRUE] = "true",
     [TOK_FALSE] = "false",
     [TOK_NIL] = "nil",
-    [TOK_FUN] = "fun",
+    [TOK_FN] = "fn",
     [TOK_VAR] = "var",
     [TOK_LET] = "let",
     [TOK_RETURN] = "return",
@@ -277,63 +277,44 @@ static token_t number(parser_t *parser) {
     return tok;
 }
 
-static token_kind_t check_keyword(
-    const parser_t *parser,
-    int start,
-    int length,
-    const char *rest,
-    token_kind_t kind
-) {
-    if(parser->current - parser->start != start + length)
-        return TOK_IDENTIFIER;
-    if(memcmp(parser->start + start, rest, length))
-        return TOK_IDENTIFIER;
-    return kind;
-}
+typedef struct {
+    const char      *name;
+    int             length;
+    token_kind_t    kind;
+} keyword_info_t;
+
+#define KEYWORD_INFO(str, k) ((keyword_info_t){.name=(str), .length=sizeof(str)-1, .kind=(k)})
+
+static const keyword_info_t kw_info[] = {
+    KEYWORD_INFO("self", TOK_SELF),
+    KEYWORD_INFO("true", TOK_TRUE),
+    KEYWORD_INFO("false", TOK_FALSE),
+    KEYWORD_INFO("nil", TOK_NIL),
+    KEYWORD_INFO("fn", TOK_FN),
+    KEYWORD_INFO("var", TOK_VAR),
+    KEYWORD_INFO("let", TOK_LET),
+    KEYWORD_INFO("return", TOK_RETURN),
+    KEYWORD_INFO("for", TOK_FOR),
+    KEYWORD_INFO("while", TOK_WHILE),
+    KEYWORD_INFO("break", TOK_BREAK),
+    KEYWORD_INFO("continue", TOK_CONTINUE),
+    KEYWORD_INFO("if", TOK_IF),
+    KEYWORD_INFO("then", TOK_THEN),
+    KEYWORD_INFO("else", TOK_ELSE),
+    KEYWORD_INFO("end", TOK_END),
+    KEYWORD_INFO("init", TOK_INIT),
+    KEYWORD_INFO("print", TOK_PRINT),
+    {NULL, 0, TOK_INVALID} // Sentinel
+};
 
 static token_kind_t identifier_kind(const parser_t *parser) {
-    switch(parser->start[0]) {
-    case 'b': return check_keyword(parser, 1, 4, "reak", TOK_BREAK);
-    case 'c': return check_keyword(parser, 1, 7, "ontinue", TOK_CONTINUE);
-    case 'e':
-        if(parser->current - parser->start >1) {
-            switch(parser->start[1]) {
-                case 'n': return check_keyword(parser, 2, 1, "d", TOK_END);
-                case 'l': return check_keyword(parser, 2, 2, "se", TOK_ELSE);
-            }
-        }
-        break;
-    case 'f':
-        if (parser->current - parser->start > 1) {
-            switch(parser->start[1]) {
-                case 'a': return check_keyword(parser, 2, 3, "lse", TOK_FALSE);
-                case 'o': return check_keyword(parser, 2, 1, "r", TOK_FOR);
-                case 'u': return check_keyword(parser, 2, 1, "n", TOK_FUN);
-            }
-        }
-        break;    
-    case 'i':
-        if (parser->current - parser->start > 1) {
-            switch(parser->start[1]) {
-                case 'f': return check_keyword(parser, 2, 0, "", TOK_IF);
-                case 'n': return check_keyword(parser, 2, 2, "it", TOK_INIT);
-            }
-        }
-        break;
-    case 'l': return check_keyword(parser, 1, 2, "et", TOK_LET);
-    case 'n': return check_keyword(parser, 1, 2, "il", TOK_NIL);
-    case 'p': return check_keyword(parser, 1, 4, "rint", TOK_PRINT);
-    case 'r': return check_keyword(parser, 1, 5, "eturn", TOK_RETURN);
-    case 't':
-        if(parser->current - parser->start > 1) {
-            switch(parser->start[1]) {
-                case 'h': return check_keyword(parser, 2, 2, "en", TOK_THEN);
-                case 'r': check_keyword(parser, 2, 2, "ue", TOK_TRUE);
-            }
-        }
-        break;
-    case 'v': return check_keyword(parser, 1, 2, "ar", TOK_VAR);
-    case 'w': return check_keyword(parser, 1, 4, "hile", TOK_WHILE);
+    int length = parser->current - parser->start;
+    ASSERT(length >= 0);
+    const char *name = parser->start;
+    for(int i = 0; kw_info[i].name != NULL; ++i) {
+        const keyword_info_t *info = &kw_info[i];
+        if(info->length == length && memcmp(info->name, name, length) == 0)
+            return info->kind;
     }
     return TOK_IDENTIFIER;
 }
@@ -450,7 +431,7 @@ void synchronize(parser_t *parser) {
         if(previous(parser)->kind == TOK_SEMICOLON) return;
         
         switch(current(parser)->kind) {
-        case TOK_FUN:
+        case TOK_FN:
         case TOK_VAR:
         case TOK_FOR:
         case TOK_IF:

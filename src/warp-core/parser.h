@@ -76,7 +76,7 @@ typedef enum {
     TOK_TRUE,
     TOK_FALSE,
     TOK_NIL,
-    TOK_FUN,
+    TOK_FN,
     TOK_VAR,
     TOK_LET,
     TOK_RETURN,
