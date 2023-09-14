@@ -14,7 +14,7 @@
 #include "chunk.h"
 #include <stdio.h>
 
-void print_value(warp_value_t value, FILE *out);
+// void print_value(warp_value_t value, FILE *out);
 void disassemble_chunk(chunk_t *chunk, const char *name, FILE *out);
 int disassemble_instr(chunk_t *chunk, int offset, FILE *out);
 

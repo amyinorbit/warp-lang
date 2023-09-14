@@ -42,7 +42,16 @@ static void repl() {
         if(line[len-1] == '\n') {
             line[len-1] = '\0';
         }
-        warp_interpret(vm, "<repl>", line, strlen(line));
+        if(warp_interpret(vm, "<repl>", line, strlen(line)) == WARP_OK) {
+            warp_value_t tos = WARP_NIL_VAL;
+            if(warp_get_slot(vm, 0, &tos)) {
+    	        term_set_fg(stdout, TERM_GREEN);
+    	        printf("=> ");
+    	        term_style_reset(stdout);
+    	        warp_print_value(tos, stdout);
+    	        printf("\n");
+            }
+        }
     }
     
     line_history_write(line_ed, history_path());

@@ -53,22 +53,6 @@ void warp_vm_destroy(warp_vm_t *vm) {
     vm->allocator(vm, 0);
 }
 
-// static inline uint8_t read_8(warp_vm_t *vm) {
-//     return *vm->ip++;
-// }
-//
-// static inline uint16_t read_16(warp_vm_t *vm) {
-//     return (uint16_t)(*vm->ip++) | ((uint16_t)(*vm->ip++) << 8);
-// }
-//
-// static inline warp_value_t read_constant(warp_vm_t *vm) {
-//     return vm->chunk->constants.data[read_8(vm)];
-// }
-
-// static inline warp_value_t read_constant_long(warp_vm_t *vm) {
-//     return vm->chunk->constants.data[read_16(vm)];
-// }
-
 static inline void push(warp_vm_t *vm, warp_value_t value) {
     *vm->sp = value;
     vm->sp++;
@@ -100,11 +84,48 @@ static void runtime_error(warp_vm_t *vm, const char *fmt, ...) {
     fputc('\n', stderr);
 }
 
+static bool invoke(warp_vm_t *vm, warp_fn_t *fn, uint8_t arg_count) {
+    if(arg_count != fn->arity) {
+        runtime_error(vm, "calling %s() with %d arguments, %d required",
+            fn->name ? fn->name->data : "<script>",
+            (int)arg_count, (int)fn->arity);
+        return false;
+    }
+    
+    if(vm->frame_count == MAX_FRAMES) {
+        runtime_error(vm, "stack overflow");
+        return false;
+    }
+    
+    call_frame_t *frame = &vm->frames[vm->frame_count++];
+    frame->fn = fn;
+    frame->ip = fn->chunk.code;
+    frame->slots = vm->sp - (arg_count + 1);
+    return true;
+}
+
+static bool invoke_val(warp_vm_t *vm, warp_value_t val, uint8_t arg_count) {
+    if(WARP_IS_OBJ(val)) {
+        switch(WARP_OBJ_KIND(val)) {
+        case WARP_OBJ_FN:
+            return invoke(vm, WARP_AS_FN(val), arg_count);
+        default:
+            break;
+        }
+    }
+    runtime_error(vm, "cannot call non-function value");
+    return false;
+}
+
 static void concatenate(warp_vm_t *vm) {
     warp_str_t *b = WARP_AS_STR(pop(vm));
     warp_str_t *a = WARP_AS_STR(pop(vm));
     
     push(vm, WARP_OBJ_VAL(warp_concat_str(vm, a, b)));
+}
+
+void dbg(warp_value_t v) {
+    warp_print_value(v, stdout);
 }
 
 warp_result_t warp_run(warp_vm_t *vm) {
@@ -132,12 +153,15 @@ warp_result_t warp_run(warp_vm_t *vm) {
         
     
     for(;;) {
-        uint8_t instr;
+        warp_opcode_t instr;
 #if DEBUG_TRACE_EXEC == 1
         fprintf(stdout, "\n===\n");
         for(warp_value_t *v = vm->stack; v != vm->sp; ++v) {
+            if(v == frame->slots) {
+                printf("...\n");
+            }
             printf("[");
-            print_value(*v, stdout);
+            warp_print_value(*v, stdout);
             printf("]\n");
         }
         fprintf(stdout, "---\n");
@@ -287,21 +311,38 @@ warp_result_t warp_run(warp_vm_t *vm) {
 			break;
         
 		case OP_PRINT:
-	        // term_set_fg(stdout, TERM_GREEN);
-	        // printf("=> ");
-	        // term_style_reset(stdout);
-	        print_value(peek(vm, 0), stdout);
-	        // printf("\n");
+	        warp_print_value(peek(vm, 0), stdout);
 			break;
             
-        case OP_RETURN:
-            term_set_fg(stdout, TERM_GREEN);
-            printf("=> ");
-            term_style_reset(stdout);
-            print_value(pop(vm), stdout);
-            printf("\n");
-            return WARP_OK;
+        case OP_CALL: {
+            int arg_count = READ_8();
+            if(!invoke_val(vm, peek(vm, arg_count), arg_count)) {
+                return WARP_RUNTIME_ERROR;
+            }
+            frame = &vm->frames[vm->frame_count-1];
+            break;
         }
+            
+        case OP_RETURN: {
+            warp_value_t result = pop(vm);
+            --vm->frame_count;
+            if(vm->frame_count == 0) {
+                return WARP_OK;
+            }
+            
+            vm->sp = frame->slots;
+            push(vm, result);
+            frame = &vm->frames[vm->frame_count-1];
+            break;
+        }
+        default:
+            UNREACHABLE();
+            break;
+        }
+        
+#if DEBUG_TRACE_EXEC
+        getchar();
+#endif
     }
     return WARP_OK;
 #undef READ_8
@@ -309,6 +350,14 @@ warp_result_t warp_run(warp_vm_t *vm) {
 #undef READ_CONST
 }
 
+bool warp_get_slot(warp_vm_t *vm, int slot, warp_value_t *out) {
+    ASSERT(vm);
+    ASSERT(slot >= 0);
+    ASSERT(out);
+    if(vm->stack + slot >= vm->sp) return false;
+    *out = vm->stack[slot];
+    return true;
+}
 
 warp_result_t warp_interpret(warp_vm_t *vm, const char *fname, const char *source, size_t length) {
     ASSERT(vm);

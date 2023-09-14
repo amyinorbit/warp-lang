@@ -44,6 +44,8 @@ WARP_OP(JMP_FALSE, 2, 0)
 // Never used in operation, sentinel used for compiling `break`.
 WARP_OP(ENDLOOP, 2, 0)
 
+WARP_OP(CALL, 1, 0)
+
 WARP_OP(PRINT, 0, 0)
 WARP_OP(RETURN, 0, 0)
     

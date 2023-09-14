@@ -1,13 +1,15 @@
 #!/usr/bin/env warp
 
-{
-    var count = 0
-    while count < 5 {
-        "123" 123
-        count = count + 1
-        if count == 3 {
-            break "nope!"
-        }
-        print "<>"
-    }
+fn fib = (n) {
+    if n < 2 then 1 else fib(n-1) + fib(n-2) end
+}
+
+var n = 0
+while n < 20 {
+    print "fib "
+    print n
+    print " = "
+    print fib(n)
+    print "\n"
+    n = n + 1
 }

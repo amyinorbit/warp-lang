@@ -247,6 +247,45 @@ static void close_loop(compiler_t *comp) {
     }
 }
 
+static void
+compiler_init(compiler_t *compiler, warp_vm_t *vm, parser_t *parser, compiler_kind_t kind) {
+    compiler->vm = vm;
+    compiler->parser = parser;
+    
+    compiler->kind = kind;
+    compiler->fn = NULL;
+    
+    compiler->local_count = 0;
+    compiler->scope_depth = 0;
+    compiler->num_slots = 0;
+    compiler->max_slots = 0;
+    compiler->fn = warp_fn_new(vm, WARP_FN_BYTECODE);
+    
+    // Claim stack index 0 for ourselves
+    local_t *local = &compiler->locals[compiler->local_count++];
+    local->depth = 0;
+    local->name.start = "";
+    local->name.length = 0;
+}
+
+static void
+compiler_init_nested(compiler_t *compiler, compiler_t *enclosing, compiler_kind_t kind) {
+    compiler_init(compiler, enclosing->vm, enclosing->parser, kind);
+    compiler->enclosing = enclosing;
+}
+
+static warp_fn_t *end_compiler(compiler_t *comp) {
+    emit_return(comp);
+    warp_fn_t *fn = comp->fn;
+    
+#if DEBUG_PRINT_CODE == 1
+    if(!comp->parser->had_error) {
+        disassemble_chunk(&fn->chunk, fn->name ? fn->name->data : "<script>", stdout);
+    }
+#endif
+    return fn;
+}
+
 static void expression(compiler_t *comp);
 static void declaration(compiler_t *comp);
 static const parse_rule_t *get_rule(token_kind_t kind);
@@ -388,6 +427,28 @@ static void grouping(compiler_t *comp, bool can_assign) {
     consume(comp->parser, TOK_RPAREN, "missing ')' after expression");
 }
 
+static uint8_t arg_list(compiler_t *comp) {
+    uint8_t count = 0;
+    if(!check(comp->parser, TOK_RPAREN)) {
+        do {
+            expression(comp);
+            if(count == UINT8_MAX) {
+                error_at(comp->parser, previous(comp->parser), "too many function arguments");
+            }
+            count += 1;
+        } while(match(comp->parser, TOK_COMMA));
+    }
+    consume(comp->parser, TOK_RPAREN, "missing ')' after call argument list");
+    return count;
+}
+
+
+static void call(compiler_t *comp, bool can_assign) {
+    UNUSED(can_assign);
+    uint8_t arg_count = arg_list(comp);
+    emit_bytes(comp, OP_CALL, arg_count);
+}
+
 static bool check_end_block(parser_t *parser) {
     return check(parser, TOK_RBRACE) || check(parser, TOK_EOF);
 }
@@ -512,7 +573,7 @@ static void print(compiler_t *comp, bool can_assign) {
 }
 
 const parse_rule_t rules[] = {
-    [TOK_LPAREN] =      {grouping,  NULL,       PREC_NONE},
+    [TOK_LPAREN] =      {grouping,  call,       PREC_CALL},
     [TOK_RPAREN] =      {NULL,      NULL,       PREC_NONE},
     [TOK_LBRACE] =      {block,     NULL,       PREC_NONE},
     [TOK_RBRACE] =      {NULL,      NULL,       PREC_NONE},
@@ -641,7 +702,7 @@ static void mark_initialized(compiler_t *comp) {
     comp->locals[comp->local_count - 1].depth = comp->scope_depth;
 }
 
-static void define_variable(compiler_t *comp, int idx) {
+static void define_variable(compiler_t *comp, int idx, bool param) {
     if(comp->scope_depth > 0) {
         mark_initialized(comp);
         /*
@@ -650,7 +711,7 @@ static void define_variable(compiler_t *comp, int idx) {
         way the compiler is written, don't. So we need a GET_LOCAL instruction here so
         we leave the stack as the rest of the language expects it.
         */
-        emit_instr(comp, OP_DUP);
+        if(!param) emit_instr(comp, OP_DUP);
         return;
     }
     emit_bytes(comp, OP_DEF_GLOB, idx);
@@ -666,63 +727,66 @@ static int parse_variable(compiler_t *comp, const char *msg) {
 }
 
 static void var_decl_stmt(compiler_t *comp) {
-    int global = parse_variable(comp, "expected a variable name");
+    int global = parse_variable(comp, "missing variable name");
     
     consume(comp->parser, TOK_EQUALS, "missing variable initializer");
     expression(comp);
+    define_variable(comp, global, false);
+}
+
+static void function(compiler_t *comp, const token_t *name, compiler_kind_t kind) {
+    compiler_t compiler;
+    compiler_init_nested(&compiler, comp, kind);
     
-    define_variable(comp, global);
+    if(kind == COMPILER_FUNC && name) {
+        compiler.fn->name = warp_copy_c_str(comp->vm, name->start, name->length);
+    }
+    
+    begin_scope(&compiler);
+    consume(compiler.parser, TOK_LPAREN, "missing function parameter list");
+    if(!check(compiler.parser, TOK_RPAREN)) {
+        do {
+            compiler.fn->arity += 1;
+            if(compiler.fn->arity > UINT8_MAX) {
+                error_at(compiler.parser, previous(compiler.parser), "too many function parameters");
+            }
+            uint8_t constant = parse_variable(&compiler, "missing parameter name");
+            define_variable(&compiler, constant, true);
+        } while(match(compiler.parser, TOK_COMMA));
+    }
+    consume(compiler.parser, TOK_RPAREN, "missing ')' after function parameter list");
+    consume(compiler.parser, TOK_LBRACE, "missing function body");
+    block_body(&compiler);
+    
+    warp_fn_t *fn = end_compiler(&compiler);
+    emit_const(comp, WARP_OBJ_VAL(fn));
+}
+
+static void fn_decl_stmt(compiler_t *comp) {
+    int global = parse_variable(comp, "missing function name");
+    mark_initialized(comp);
+    
+    token_t name = *previous(comp->parser);
+    consume(comp->parser, TOK_EQUALS, "missing function initializer");
+    function(comp, &name, COMPILER_FUNC);
+    define_variable(comp, global, false);
 }
 
 static void declaration(compiler_t *comp) {
     if(match(comp->parser, TOK_VAR)) {
         var_decl_stmt(comp);
-        consume_terminator(comp->parser, "expected a line return or a semicolon");
+    } else if(match(comp->parser, TOK_FN)) {
+        fn_decl_stmt(comp);
     } else {
         expression(comp);
-        consume_terminator(comp->parser, "expected a line return or a semicolon");
     }
+    consume_terminator(comp->parser, "expected a line return or a semicolon");
     
     if(!check_end_block(comp->parser)) {
         emit_instr(comp, OP_POP);
     }
     if(comp->parser->panic) synchronize(comp->parser);
 }
-
-static void
-compiler_init(compiler_t *compiler, warp_vm_t *vm, parser_t *parser, compiler_kind_t kind) {
-    compiler->vm = vm;
-    compiler->parser = parser;
-    
-    compiler->kind = kind;
-    compiler->fn = NULL;
-    
-    compiler->local_count = 0;
-    compiler->scope_depth = 0;
-    compiler->num_slots = 0;
-    compiler->max_slots = 0;
-    compiler->fn = warp_fn_new(vm, WARP_FN_BYTECODE);
-    
-    // Claim stack index 0 for ourselves
-    local_t *local = &compiler->locals[compiler->local_count++];
-    local->depth = 0;
-    local->name.start = "";
-    local->name.length = 0;
-}
-
-
-static warp_fn_t *end_compiler(compiler_t *comp) {
-    emit_return(comp);
-    warp_fn_t *fn = comp->fn;
-    
-#if DEBUG_PRINT_CODE == 1
-    if(!comp->parser->had_error) {
-        disassemble_chunk(&fn->chunk, fn->name ? fn->name->data : "<script>", stdout);
-    }
-#endif
-    return fn;
-}
-
 
 warp_fn_t *compile(warp_vm_t *vm, const char *fname, const char *src, size_t length) {
     compiler_t comp;

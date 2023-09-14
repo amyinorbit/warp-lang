@@ -9,12 +9,11 @@
 #pragma once
 #include <warp/common.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define WARP_USE_NAN
 
 typedef enum {
     VAL_NIL,
@@ -89,16 +88,17 @@ struct warp_value_t {
 #define WARP_IS_OBJ(val)    ((val).kind == VAL_OBJ)
 
 #define WARP_AS_BOOL(val)   ((val).as.boolean)
-#define WARP_AS_NUM(val)    ((val).as.number)
-#define WARP_AS_OBJ(val)    ((val).as.object)
+#define WARP_AS_NUM(val)    ((val).as.num)
+#define WARP_AS_OBJ(val)    ((val).as.obj)
 
-#define WARP_NIL_VAL        ((warp_value_t){VAL_NIL, {.number=0}})
+#define WARP_NIL_VAL        ((warp_value_t){VAL_NIL, {.num=0}})
 #define WARP_BOOL_VAL(val)  ((warp_value_t){VAL_BOOL, {.boolean=!!(val)}})
 #define WARP_NUM_VAL(val)   ((warp_value_t){VAL_NUM, {.num=(val)}})
-#define WARP_OBJ_VAL(val)   ((warp_value_t){VAL_NUM, {.obj=(val)}})
+#define WARP_OBJ_VAL(val)   ((warp_value_t){VAL_NUM, {.obj=(warp_obj_t *)(val)}})
     
 #endif
 
+void warp_print_value(warp_value_t value, FILE *out);
 
 #ifdef __cplusplus
 } // extern "C"

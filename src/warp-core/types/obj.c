@@ -50,7 +50,7 @@ void obj_print(warp_value_t val, FILE *out) {
         fprintf(out, "<map %p>", (void *)WARP_AS_OBJ(val));
         break;
     case WARP_OBJ_FN:
-        fprintf(out, "<fn %s", WARP_AS_FN(val)->name ? WARP_AS_FN(val)->name->data : "<script>");
+        fprintf(out, "<fn %s()>", WARP_AS_FN(val)->name ? WARP_AS_FN(val)->name->data : "<script>");
         break;
     }
 }

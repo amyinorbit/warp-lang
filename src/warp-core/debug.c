@@ -23,7 +23,7 @@ static const instr_data_t instr_data[] = {
 
 static const size_t instr_count = sizeof(instr_data)/sizeof(instr_data_t);
 
-void print_value(warp_value_t value, FILE *out) {
+void warp_print_value(warp_value_t value, FILE *out) {
     ASSERT(out);
     if(WARP_IS_NUM(value)) {
         fprintf(out, "%g", WARP_AS_NUM(value));
@@ -73,7 +73,7 @@ int disassemble_instr(chunk_t *chunk, int offset, FILE *out) {
         if(op == OP_CONST || op == OP_DEF_GLOB || op == OP_GET_GLOB || op == OP_SET_GLOB) {
             uint8_t value_idx = chunk->code[offset+1];
             fprintf(out, "  (");
-            print_value(chunk->constants.data[value_idx], out);
+            warp_print_value(chunk->constants.data[value_idx], out);
             fprintf(out, ")\n");
         } else {
             fprintf(out, "\n");

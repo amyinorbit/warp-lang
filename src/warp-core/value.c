@@ -33,7 +33,7 @@ bool value_equals(warp_value_t a, warp_value_t b) {
 #ifdef WARP_USE_NAN
     UNUSED(value_kind);
     if(WARP_IS_OBJ(a) && WARP_IS_OBJ(b)) {
-        return obj_equals(WARP_AS_OBJ(a), WARP_AS_OBJ(b));
+        return WARP_AS_OBJ(a) == WARP_AS_OBJ(b);
     } else {
         return a == b;
     }
@@ -43,7 +43,7 @@ bool value_equals(warp_value_t a, warp_value_t b) {
     case VAL_NIL: return true;
     case VAL_BOOL: return WARP_AS_BOOL(a) == WARP_AS_BOOL(b);
     case VAL_NUM: return WARP_AS_NUM(a) == WARP_AS_NUM(b);
-    case VAL_OBJ: return return WARP_AS_OBJ(a) == WARP_AS_OBJ(b);
+    case VAL_OBJ: return WARP_AS_OBJ(a) == WARP_AS_OBJ(b);
     //obj_equals(WARP_AS_OBJ(a), WARP_AS_OBJ(b));
     default: break;
     }
