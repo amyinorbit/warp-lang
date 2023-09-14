@@ -11,6 +11,7 @@
 #define _OBJ_IMPL_H_
 #include <warp/obj.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "../memory.h"
 
 #define ALLOCATE_OBJ(vm, T, tag) \
@@ -20,6 +21,7 @@ warp_obj_t *alloc_obj(warp_vm_t *vm, size_t size, warp_obj_kind_t kind);
 void init_obj(warp_vm_t *vm, warp_obj_t *obj, warp_obj_kind_t kind);
 bool obj_equals(const warp_obj_t *a, const warp_obj_t *b);
 void obj_destroy(warp_vm_t *vm, warp_obj_t *obj);
+void obj_print(warp_value_t val, FILE *out);
 
 // MARK: - String interface
 
@@ -50,5 +52,16 @@ struct warp_map_t {
 
 warp_str_t *warp_map_find_str(warp_map_t *map, const char *str, warp_uint_t length, uint32_t hash);
 void warp_map_free(warp_vm_t *vm, warp_map_t *map);
+
+// MARK: Func Interface
+
+struct warp_fn_t {
+    warp_obj_t      obj;
+    warp_uint_t     arity;
+    chunk_t         chunk;
+    warp_str_t      *name;
+};
+
+void warp_fn_free(warp_vm_t *vm, warp_fn_t *fn);
 
 #endif /* ifndef _OBJ_IMPL_H_ */

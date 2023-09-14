@@ -2,6 +2,7 @@ set(WARP_CORE_SRC
     types/obj.c
     types/str.c
     types/map.c
+    types/fn.c
     buffers.c
     chunk.c
     common.c

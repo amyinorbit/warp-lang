@@ -21,6 +21,9 @@ void obj_destroy(warp_vm_t *vm, warp_obj_t *obj) {
     case WARP_OBJ_MAP:
         warp_map_free(vm, (warp_map_t *)obj);
         break;
+    case WARP_OBJ_FN:
+        warp_fn_free(vm, (warp_fn_t *)obj);
+        break;
     }
 }
 
@@ -37,15 +40,17 @@ void init_obj(warp_vm_t *vm, warp_obj_t *obj, warp_obj_kind_t kind) {
     vm->objects = obj;
 }
 
-void print_obj(warp_vm_t *vm, warp_value_t val) {
-    (void)vm;
+void obj_print(warp_value_t val, FILE *out) {
     
     switch(WARP_OBJ_KIND(val)) {
     case WARP_OBJ_STR:
-        printf("%s", WARP_AS_CSTR(val));
+        fprintf(out, "%s", WARP_AS_CSTR(val));
         break;
     case WARP_OBJ_MAP:
-        printf("<map %p>", (void *)WARP_AS_OBJ(val));
+        fprintf(out, "<map %p>", (void *)WARP_AS_OBJ(val));
+        break;
+    case WARP_OBJ_FN:
+        fprintf(out, "<fn %s", WARP_AS_FN(val)->name ? WARP_AS_FN(val)->name->data : "<script>");
         break;
     }
 }

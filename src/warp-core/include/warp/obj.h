@@ -12,12 +12,14 @@
 
 #include <warp/common.h>
 #include <warp/value.h>
+#include "../chunk.h"
 #include <stdint.h>
 
 typedef enum {
     WARP_OBJ_STR,
     // WARP_OBJ_LIST,
     WARP_OBJ_MAP,
+    WARP_OBJ_FN,
 } warp_obj_kind_t;
 
 struct warp_obj_t {
@@ -35,6 +37,9 @@ static inline bool warp_is_obj_kind(warp_value_t val, warp_obj_kind_t kind) {
 #define WARP_AS_CSTR(value)     (warp_str_get_c(WARP_AS_STR(value)))
 
 #define WARP_AS_LIST(value)     ((warp_list_t *)WARP_AS_OBJ(value))
+
+#define WARP_IS_FN(value)       (warp_is_obj_kind(value, WARP_OBJ_FN))
+#define WARP_AS_FN(value)       ((warp_fn_t *)WARP_AS_OBJ(value))
 
 // MARK: - String interface
 
@@ -58,5 +63,14 @@ warp_map_t *warp_map_new(warp_vm_t *vm);
 bool warp_map_set(warp_vm_t *vm, warp_map_t *map, warp_value_t key, warp_value_t val);
 bool warp_map_delete(warp_map_t *map, warp_value_t key, warp_value_t *out);
 bool warp_map_get(warp_map_t *map, warp_value_t key, warp_value_t *out);
+
+// MARK: - Function Interface
+
+typedef enum {
+    WARP_FN_BYTECODE,
+    WARP_FN_FOREIGN
+} warp_fn_kind_t;
+
+warp_fn_t *warp_fn_new(warp_vm_t *vm, warp_fn_kind_t kind);
 
 #endif /* ifndef _WARP_OBJ_H_ */

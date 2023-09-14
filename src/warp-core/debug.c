@@ -7,8 +7,8 @@
 // =^•.•^=
 //===--------------------------------------------------------------------------------------------===
 #include "debug.h"
+#include "types/obj_impl.h"
 #include <warp/instr.h>
-#include <warp/obj.h>
 
 typedef struct {
     const char *name;
@@ -23,18 +23,6 @@ static const instr_data_t instr_data[] = {
 
 static const size_t instr_count = sizeof(instr_data)/sizeof(instr_data_t);
 
-static void print_obj(warp_value_t val, FILE *out) {
-    
-    switch(WARP_OBJ_KIND(val)) {
-    case WARP_OBJ_STR:
-        fprintf(out, "%s", WARP_AS_CSTR(val));
-        break;
-    case WARP_OBJ_MAP:
-        fprintf(out, "<map>");
-        break;
-    }
-}
-
 void print_value(warp_value_t value, FILE *out) {
     ASSERT(out);
     if(WARP_IS_NUM(value)) {
@@ -44,7 +32,7 @@ void print_value(warp_value_t value, FILE *out) {
     } else if(WARP_IS_NIL(value)) {
         fprintf(out, "<nil>");
     } else if(WARP_IS_OBJ(value)) {
-        print_obj(value, out);
+        obj_print(value, out);
     }
 }
 

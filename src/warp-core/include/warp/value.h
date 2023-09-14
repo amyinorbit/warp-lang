@@ -27,6 +27,7 @@ typedef struct warp_obj_t   warp_obj_t;
 typedef struct warp_str_t   warp_str_t;
 typedef struct warp_list_t  warp_list_t;
 typedef struct warp_map_t   warp_map_t;
+typedef struct warp_fn_t    warp_fn_t;
 
 typedef int32_t      warp_int_t;
 typedef uint32_t     warp_uint_t;

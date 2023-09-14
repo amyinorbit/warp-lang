@@ -48,7 +48,6 @@ warp_vm_t *warp_vm_new(const warp_cfg_t *cfg);
  * @param vm The Warp VM to destroy.
  */
 void warp_vm_destroy(warp_vm_t *vm);
-
 warp_result_t warp_run(warp_vm_t *vm);
 warp_result_t warp_interpret(warp_vm_t *vm, const char *source, size_t length);
 
