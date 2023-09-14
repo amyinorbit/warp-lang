@@ -20,7 +20,13 @@ static void reset_stack(warp_vm_t *vm) {
     vm->sp = vm->stack;
 }
 
-static void println(warp_vm_t *vm, warp_value_t *slots) {
+static void std_random(warp_vm_t *vm, warp_value_t *slots) {
+    UNUSED(vm);
+    double val = (double)rand() / (double)RAND_MAX;
+    slots[0] = WARP_NUM_VAL(val);
+}
+
+static void std_println(warp_vm_t *vm, warp_value_t *slots) {
     UNUSED(vm);
     warp_print_value(slots[0], stdout);
     putc('\n', stdout);
@@ -41,7 +47,8 @@ warp_vm_t *warp_vm_new(const warp_cfg_t *cfg) {
     
     reset_stack(vm);
     
-    warp_register_native(vm, "println", 1, &println);
+    warp_register_native(vm, "println", 1, &std_println);
+    warp_register_native(vm, "random", 0, &std_random);
     return vm;
 }
 
@@ -90,6 +97,14 @@ static void runtime_error(warp_vm_t *vm, const char *fmt, ...) {
     va_end(args);
     reset_stack(vm);
     fputc('\n', stderr);
+    
+    fprintf(stderr, "\nstack trace:\n");
+    for(int i = vm->frame_count-1; i >= 0; --i) {
+        warp_fn_t *fn = vm->frames[i].fn;
+        fprintf(stderr, "%02d: %s()\n",
+            (vm->frame_count-1) - i,
+            fn->name ? fn->name->data : "<script>");
+    }
 }
 
 static bool invoke(warp_vm_t *vm, warp_fn_t *fn, uint8_t arg_count) {
