@@ -128,7 +128,7 @@ typedef struct parser_s {
     bool                panic;
 } parser_t;
 
-void parser_init_text(parser_t *parser, warp_vm_t *vm, const char *text, size_t length);
+void parser_init(parser_t *parser, warp_vm_t *vm, const char *fname, const char *text, size_t length);
 token_t scan_token(parser_t *parser);
 const char *token_name(token_kind_t kind);
 

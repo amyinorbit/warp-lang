@@ -397,12 +397,12 @@ token_t scan_token(parser_t *parser) {
     return tok;
 }
 
-void parser_init_text(parser_t *parser, warp_vm_t *vm, const char *text, size_t length) {
+void parser_init(parser_t *parser, warp_vm_t *vm, const char *fname, const char *text, size_t length) {
     UNUSED(parser);
     UNUSED(text);
     parser->vm = vm;
     
-    parser->source.fname = "<repl>";
+    parser->source.fname = fname;
     parser->source.start = text;
     parser->source.end = text + length;
     parser->start = text;

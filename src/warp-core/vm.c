@@ -16,17 +16,24 @@
 #include "types/obj_impl.h"
 #include <stdarg.h>
 
+static void reset_stack(warp_vm_t *vm) {
+    vm->sp = vm->stack;
+}
+
 warp_vm_t *warp_vm_new(const warp_cfg_t *cfg) {
     ASSERT(cfg);
     allocator_t alloc = cfg->allocator ? cfg->allocator : default_allocator;
     warp_vm_t *vm = alloc(NULL, sizeof(warp_vm_t));
     CHECK(vm);
     
+    vm->frame_count = 0;
+    
     vm->allocator = alloc;
     vm->objects = NULL;
     vm->strings = warp_map_new(vm);
     vm->globals = warp_map_new(vm);
     
+    reset_stack(vm);
     return vm;
 }
 
@@ -46,25 +53,21 @@ void warp_vm_destroy(warp_vm_t *vm) {
     vm->allocator(vm, 0);
 }
 
-static inline uint8_t read_8(warp_vm_t *vm) {
-    return *vm->ip++;
-}
-
-static inline uint16_t read_16(warp_vm_t *vm) {
-    return (uint16_t)(*vm->ip++) | ((uint16_t)(*vm->ip++) << 8);
-}
-
-static inline warp_value_t read_constant(warp_vm_t *vm) {
-    return vm->chunk->constants.data[read_8(vm)];
-}
+// static inline uint8_t read_8(warp_vm_t *vm) {
+//     return *vm->ip++;
+// }
+//
+// static inline uint16_t read_16(warp_vm_t *vm) {
+//     return (uint16_t)(*vm->ip++) | ((uint16_t)(*vm->ip++) << 8);
+// }
+//
+// static inline warp_value_t read_constant(warp_vm_t *vm) {
+//     return vm->chunk->constants.data[read_8(vm)];
+// }
 
 // static inline warp_value_t read_constant_long(warp_vm_t *vm) {
 //     return vm->chunk->constants.data[read_16(vm)];
 // }
-
-static void reset_stack(warp_vm_t *vm) {
-    vm->sp = vm->stack;
-}
 
 static inline void push(warp_vm_t *vm, warp_value_t value) {
     *vm->sp = value;
@@ -82,9 +85,10 @@ static inline warp_value_t pop(warp_vm_t *vm) {
 
 static void runtime_error(warp_vm_t *vm, const char *fmt, ...) {
     // TODO: output to the diagnostics system, probably
+    call_frame_t *frame = &vm->frames[vm->frame_count-1];
     
-    size_t instruction = vm->ip - vm->chunk->code;
-    int line = vm->chunk->lines[instruction];
+    size_t instruction = frame->ip - frame->fn->chunk.code;
+    int line = frame->fn->chunk.lines[instruction];
 
     fprintf(stderr, "runtime error on line %d: ", line);
     
@@ -105,10 +109,15 @@ static void concatenate(warp_vm_t *vm) {
 
 warp_result_t warp_run(warp_vm_t *vm) {
     ASSERT(vm);
-    reset_stack(vm);
+    // reset_stack(vm);
+    call_frame_t *frame = &vm->frames[vm->frame_count - 1];
     
-#define READ_8() (*vm->ip++)
-#define READ_CONST() (vm->chunk->constants.data[READ_8()])
+#define READ_8() (*frame->ip++)
+#define READ_16() \
+    (frame->ip += 2, \
+    (uint16_t)(frame->ip[-2] | (frame->ip[-1] << 8)))
+#define READ_CONST() \
+    (frame->fn->chunk.constants.data[READ_8()])
     
 #define BINARY(T, op)                                                                              \
     do {                                                                                           \
@@ -132,22 +141,22 @@ warp_result_t warp_run(warp_vm_t *vm) {
             printf("]\n");
         }
         fprintf(stdout, "---\n");
-        disassemble_instr(vm->chunk, (int)(vm->ip - vm->chunk->code), stdout);
+        disassemble_instr(&frame->fn->chunk, (int)(frame->ip - frame->fn->chunk.code), stdout);
         fprintf(stdout, "===\n");
 #endif
-        switch(instr = read_8(vm)) {            
+        switch(instr = READ_8()) {            
         case OP_CONST:
-            push(vm, read_constant(vm));
+            push(vm, READ_CONST());
             break;
             
         case OP_DEF_GLOB: {
-            warp_value_t name = read_constant(vm);
+            warp_value_t name = READ_CONST();
             warp_map_set(vm, vm->globals, name, peek(vm, 0));
             break;
         }
         
         case OP_GET_GLOB: {
-            warp_value_t name = read_constant(vm);
+            warp_value_t name = READ_CONST();
             warp_value_t val = WARP_NIL_VAL;
             if(!warp_map_get(vm->globals, name, &val)) {
                 runtime_error(vm, "undefined global variable '%s'", WARP_AS_CSTR(name));
@@ -158,7 +167,7 @@ warp_result_t warp_run(warp_vm_t *vm) {
         }
         
         case OP_SET_GLOB: {
-            warp_value_t name = read_constant(vm);
+            warp_value_t name = READ_CONST();
             if(!warp_map_set(vm, vm->globals, name, peek(vm, 0))) {
                 warp_map_delete(vm->globals, name, NULL);
                 runtime_error(vm, "undefined global variable '%s", WARP_AS_CSTR(name));
@@ -167,14 +176,14 @@ warp_result_t warp_run(warp_vm_t *vm) {
         }
         
         case OP_GET_LOCAL: {
-            uint8_t slot = read_8(vm);
-            push(vm, vm->stack[slot]);
+            uint8_t slot = READ_8();
+            push(vm, frame->slots[slot]);
             break;
         }
         
         case OP_SET_LOCAL: {
-            uint8_t slot = read_8(vm);
-            vm->stack[slot] = peek(vm, 0);
+            uint8_t slot = READ_8();
+            frame->slots[slot] = peek(vm, 0);
             break;
         }
         
@@ -190,7 +199,7 @@ warp_result_t warp_run(warp_vm_t *vm) {
         // can't just POP our way out of all of our locals -- we need to save the top-of-stack
         // first.
         case OP_BLOCK: {
-            uint8_t slots = read_16(vm);
+            uint8_t slots = READ_16();
             warp_value_t val = pop(vm);
             vm->sp -= slots;
             push(vm, val);
@@ -258,18 +267,18 @@ warp_result_t warp_run(warp_vm_t *vm) {
         }
 		
 		case OP_LOOP: {
-			vm->ip -= read_16(vm);
+			frame->ip -= READ_16();
 			break;
 		}
 		
         case OP_JMP: {
-            vm->ip += read_16(vm);
+            frame->ip += READ_16();
             break;
         }
         
         case OP_JMP_FALSE: {
-            uint16_t jmp = read_16(vm);
-            if(value_is_falsey(peek(vm, 0))) vm->ip += jmp;
+            uint16_t jmp = READ_16();
+            if(value_is_falsey(peek(vm, 0))) frame->ip += jmp;
             break;
         }
 		
@@ -296,27 +305,23 @@ warp_result_t warp_run(warp_vm_t *vm) {
     }
     return WARP_OK;
 #undef READ_8
+#undef READ_16
 #undef READ_CONST
 }
 
 
-warp_result_t warp_interpret(warp_vm_t *vm, const char *source, size_t length) {
+warp_result_t warp_interpret(warp_vm_t *vm, const char *fname, const char *source, size_t length) {
     ASSERT(vm);
     ASSERT(source);
     
-    chunk_t chunk;
-    chunk_init(vm, &chunk);
+    warp_fn_t *fn = compile(vm, fname, source, length);
+    if(!fn) return WARP_COMPILE_ERROR;
     
-    // TODO: compile-exec
-    if(!compile(vm, &chunk, source, length)) {
-        chunk_fini(vm, &chunk);
-        return WARP_COMPILE_ERROR;
-    }
-    vm->chunk = &chunk;
-    vm->ip = vm->chunk->code;
+    push(vm, WARP_OBJ_VAL(fn));
+    call_frame_t *frame = &vm->frames[vm->frame_count++];
+    frame->fn = fn;
+    frame->ip = fn->chunk.code;
+    frame->slots = vm->stack;
     
-    warp_result_t result = warp_run(vm);
-    
-    chunk_fini(vm, &chunk);
-    return result;
+    return warp_run(vm);
 }

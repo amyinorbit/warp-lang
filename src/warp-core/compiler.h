@@ -10,5 +10,4 @@
 #include <warp/warp.h>
 #include "chunk.h"
 
-
-bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length);
+warp_fn_t *compile(warp_vm_t *vm, const char *fname, const char *src, size_t length);

@@ -35,33 +35,40 @@ typedef struct local_t local_t;
 typedef struct compiler_t compiler_t;
 typedef struct loop_t loop_t;
 
+typedef enum {
+    COMPILER_SCRIPT,
+    COMPILER_FUNC,
+} compiler_kind_t;
+
 struct local_t {
     token_t     name;
     int         depth;
 };
 
 struct loop_t {
-    loop_t      *enclosing;
-    int         start;
-    int         body;
-    int         exit_jmp;
-    int         scope_depth;
+    loop_t          *enclosing;
+    int             start;
+    int             body;
+    int             exit_jmp;
+    int             scope_depth;
 };
 
 struct compiler_t {
     // compiler_t  *enclosing;
-    warp_vm_t   *vm;
-    chunk_t     *chunk;
-    parser_t    *parser;
+    warp_fn_t       *fn;
+    compiler_kind_t kind;
     
-    loop_t      *loop;
+    warp_vm_t       *vm;
+    parser_t        *parser;
     
-    local_t     locals[UINT8_COUNT];
-    int         local_count;
-    int         scope_depth;
+    loop_t          *loop;
     
-    int         num_slots;
-    int         max_slots;
+    local_t         locals[UINT8_COUNT];
+    int             local_count;
+    int             scope_depth;
+    
+    int             num_slots;
+    int             max_slots;
 };
 
 typedef void (*parse_fn_t)(compiler_t *comp, bool can_assign);
@@ -86,7 +93,7 @@ static int code_size[] = {
 #undef WARP_OP
 
 static chunk_t *current_chunk(compiler_t *comp) {
-    return comp->chunk;
+    return &comp->fn->chunk;
 }
 
 static void emit_byte(compiler_t *comp, uint8_t byte) {
@@ -238,10 +245,6 @@ static void close_loop(compiler_t *comp) {
             patch_jump(comp, i-2);
         }
     }
-}
-
-static void end_compiler(compiler_t *comp) {
-    emit_return(comp);
 }
 
 static void expression(compiler_t *comp);
@@ -681,38 +684,54 @@ static void declaration(compiler_t *comp) {
     if(comp->parser->panic) synchronize(comp->parser);
 }
 
-static void compiler_init_root(compiler_t *compiler, warp_vm_t *vm, parser_t *parser, chunk_t *chunk) {
+static void
+compiler_init(compiler_t *compiler, warp_vm_t *vm, parser_t *parser, compiler_kind_t kind) {
     compiler->vm = vm;
     compiler->parser = parser;
     
-    compiler->chunk = chunk;
+    compiler->kind = kind;
+    compiler->fn = NULL;
+    
     compiler->local_count = 0;
     compiler->scope_depth = 0;
     compiler->num_slots = 0;
     compiler->max_slots = 0;
+    compiler->fn = warp_fn_new(vm, WARP_FN_BYTECODE);
+    
+    // Claim stack index 0 for ourselves
+    local_t *local = &compiler->locals[compiler->local_count++];
+    local->depth = 0;
+    local->name.start = "";
+    local->name.length = 0;
 }
 
-bool compile(warp_vm_t *vm, chunk_t *chunk, const char *src, size_t length) {
-    compiler_t comp;
+
+static warp_fn_t *end_compiler(compiler_t *comp) {
+    emit_return(comp);
+    warp_fn_t *fn = comp->fn;
     
+#if DEBUG_PRINT_CODE == 1
+    if(!comp->parser->had_error) {
+        disassemble_chunk(&fn->chunk, fn->name ? fn->name->data : "<script>", stdout);
+    }
+#endif
+    return fn;
+}
+
+
+warp_fn_t *compile(warp_vm_t *vm, const char *fname, const char *src, size_t length) {
+    compiler_t comp;
     parser_t parser;
-    parser_init_text(&parser, vm, src, length);
-    compiler_init_root(&comp, vm, &parser, chunk);
+    parser_init(&parser, vm, fname, src, length);
+    compiler_init(&comp, vm, &parser, COMPILER_SCRIPT);
     
     advance(comp.parser);
     while(!match(comp.parser, TOK_EOF)) {
         declaration(&comp);
     }
-    end_compiler(&comp);
-    
     consume(comp.parser, TOK_EOF, "expected end of expression");
+    warp_fn_t *fn = end_compiler(&comp);
     
-#if DEBUG_PRINT_CODE == 1
-    if(!parser.had_error) {
-        disassemble_chunk(chunk, "compiled code", stdout);
-    }
-#endif
-    
-    return !parser.had_error;
+    return !parser.had_error ? fn : NULL;
 }
 

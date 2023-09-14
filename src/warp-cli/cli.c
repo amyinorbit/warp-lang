@@ -42,7 +42,7 @@ static void repl() {
         if(line[len-1] == '\n') {
             line[len-1] = '\0';
         }
-        warp_interpret(vm, line, strlen(line));
+        warp_interpret(vm, "<repl>", line, strlen(line));
     }
     
     line_history_write(line_ed, history_path());
@@ -71,7 +71,7 @@ static void run_file(const char *path) {
     fclose(f);
     
     warp_vm_t *vm = warp_vm_new(&(warp_cfg_t){.allocator = NULL});
-    warp_interpret(vm, source, length);
+    warp_interpret(vm, path, source, length);
     warp_vm_destroy(vm);
     
     free(source);

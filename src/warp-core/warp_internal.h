@@ -13,8 +13,19 @@
 
 typedef void *(*allocator_t)(void *, size_t);
 
+#define MAX_FRAMES  (64)
+#define STACK_MAX   (MAX_FRAMES * UINT8_MAX)
+
+typedef struct {
+    warp_fn_t       *fn;
+    uint8_t         *ip;
+    warp_value_t    *slots;
+} call_frame_t;
+
 struct warp_vm_t {
-    chunk_t         *chunk;
+    call_frame_t    frames[MAX_FRAMES];
+    warp_int_t      frame_count;
+    
     uint8_t         *ip;
     
     warp_obj_t      *objects;
